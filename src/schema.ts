@@ -1,0 +1,314 @@
+/**
+ * Theme Token Schema & Validation
+ *
+ * Zod schemas and validation utilities for ThemeToken standard.
+ * All color values use the Oklch format: "oklch(L C H)"
+ */
+
+import { z } from "zod";
+
+/**
+ * Schema URL for Theme Token standard
+ */
+export const THEME_TOKEN_SCHEMA_URL =
+	"https://themetoken.dev/v1/schema.json" as const;
+
+/**
+ * Theme style properties - flat, kebab-case, matches ShadCN CSS vars
+ */
+export const themeStylePropsSchema = z
+	.object({
+		// Core colors (required)
+		background: z.string(),
+		foreground: z.string(),
+		card: z.string(),
+		"card-foreground": z.string(),
+		popover: z.string(),
+		"popover-foreground": z.string(),
+		primary: z.string(),
+		"primary-foreground": z.string(),
+		secondary: z.string(),
+		"secondary-foreground": z.string(),
+		muted: z.string(),
+		"muted-foreground": z.string(),
+		accent: z.string(),
+		"accent-foreground": z.string(),
+		destructive: z.string(),
+		"destructive-foreground": z.string(),
+		border: z.string(),
+		input: z.string(),
+		ring: z.string(),
+
+		// Charts (optional)
+		"chart-1": z.string().optional(),
+		"chart-2": z.string().optional(),
+		"chart-3": z.string().optional(),
+		"chart-4": z.string().optional(),
+		"chart-5": z.string().optional(),
+
+		// Sidebar (optional)
+		sidebar: z.string().optional(),
+		"sidebar-foreground": z.string().optional(),
+		"sidebar-primary": z.string().optional(),
+		"sidebar-primary-foreground": z.string().optional(),
+		"sidebar-accent": z.string().optional(),
+		"sidebar-accent-foreground": z.string().optional(),
+		"sidebar-border": z.string().optional(),
+		"sidebar-ring": z.string().optional(),
+
+		// Typography (optional)
+		"font-sans": z.string().optional(),
+		"font-serif": z.string().optional(),
+		"font-mono": z.string().optional(),
+
+		// Dimensions
+		radius: z.string(),
+		"letter-spacing": z.string().optional(),
+		spacing: z.string().optional(),
+
+		// Shadow components (optional)
+		"shadow-color": z.string().optional(),
+		"shadow-opacity": z.string().optional(),
+		"shadow-blur": z.string().optional(),
+		"shadow-spread": z.string().optional(),
+		"shadow-offset-x": z.string().optional(),
+		"shadow-offset-y": z.string().optional(),
+
+		// Shadow presets (optional)
+		"shadow-2xs": z.string().optional(),
+		"shadow-xs": z.string().optional(),
+		"shadow-sm": z.string().optional(),
+		shadow: z.string().optional(),
+		"shadow-md": z.string().optional(),
+		"shadow-lg": z.string().optional(),
+		"shadow-xl": z.string().optional(),
+		"shadow-2xl": z.string().optional(),
+	})
+	.catchall(z.string());
+
+export type ThemeStyleProps = z.infer<typeof themeStylePropsSchema>;
+
+/**
+ * Theme styles with light and dark modes
+ */
+export const themeStylesSchema = z.object({
+	light: themeStylePropsSchema,
+	dark: themeStylePropsSchema,
+});
+
+export type ThemeStyles = z.infer<typeof themeStylesSchema>;
+
+/**
+ * CSS rules schema for @layer base
+ */
+export const cssRulesSchema = z
+	.object({
+		"@layer base": z
+			.record(z.string(), z.record(z.string(), z.string()))
+			.optional(),
+	})
+	.optional();
+
+export type CssRules = z.infer<typeof cssRulesSchema>;
+
+/**
+ * Theme Token schema
+ * Required: $schema, name, styles
+ * Optional: author (paymail/identity), css
+ */
+export const themeTokenSchema = z.object({
+	$schema: z.string(),
+	name: z.string(),
+	author: z.string().optional(),
+	styles: themeStylesSchema,
+	css: cssRulesSchema,
+});
+
+export type ThemeToken = z.infer<typeof themeTokenSchema>;
+
+/**
+ * Validation result type
+ */
+export type ValidationResult =
+	| { valid: true; theme: ThemeToken }
+	| { valid: false; error: string };
+
+/**
+ * Parse result type
+ */
+export type ParseResult =
+	| { valid: true; theme: ThemeToken }
+	| { valid: false; error: string };
+
+/**
+ * Validate a ThemeToken object
+ *
+ * @param data - Unknown data to validate
+ * @returns Validation result with parsed theme or error message
+ *
+ * @example
+ * ```ts
+ * const result = validateThemeToken(json)
+ * if (result.valid) {
+ *   console.log(result.theme.name)
+ * } else {
+ *   console.error(result.error)
+ * }
+ * ```
+ */
+export function validateThemeToken(data: unknown): ValidationResult {
+	const result = themeTokenSchema.safeParse(data);
+	if (result.success) {
+		return { valid: true, theme: result.data };
+	}
+	return { valid: false, error: result.error.message };
+}
+
+/**
+ * Parse @layer base rules from CSS
+ * Also captures root-level body { } rules
+ */
+function parseLayerBase(
+	css: string,
+): { "@layer base": Record<string, Record<string, string>> } | undefined {
+	// First try to match @layer base { ... body ... }
+	const layerMatch = css.match(/@layer\s+base\s*\{([\s\S]*?body[\s\S]*?)\}/);
+
+	let bodyContent: string | null = null;
+
+	if (layerMatch) {
+		// Extract body { ... } within @layer base
+		const bodyMatch = layerMatch[1].match(/body\s*\{([^}]+)\}/);
+		if (bodyMatch) {
+			bodyContent = bodyMatch[1];
+		}
+	} else {
+		// Try root-level body { }
+		const rootBodyMatch = css.match(/(?:^|\n)body\s*\{([^}]+)\}/);
+		if (rootBodyMatch) {
+			bodyContent = rootBodyMatch[1];
+		}
+	}
+
+	if (!bodyContent) return undefined;
+
+	const bodyProps: Record<string, string> = {};
+	const propRegex = /([a-z-]+)\s*:\s*([^;]+);/gi;
+	for (const match of bodyContent.matchAll(propRegex)) {
+		bodyProps[match[1].trim()] = match[2].trim();
+	}
+
+	if (Object.keys(bodyProps).length === 0) return undefined;
+
+	return {
+		"@layer base": {
+			body: bodyProps,
+		},
+	};
+}
+
+/**
+ * Parse CSS block into ThemeStyleProps
+ * Maps CSS variable names to internal format:
+ * - --shadow-x → shadow-offset-x
+ * - --shadow-y → shadow-offset-y
+ * - --tracking-normal → letter-spacing
+ */
+function parseCssBlock(css: string): ThemeStyleProps {
+	const props: Record<string, string> = {};
+
+	// Match CSS variable declarations: --name: value;
+	const varRegex = /--([a-z0-9-]+)\s*:\s*([^;]+);/gi;
+
+	for (const match of css.matchAll(varRegex)) {
+		const [, name, value] = match;
+		// Skip @theme inline variables (--color-*, --radius-*, --tracking-* except tracking-normal)
+		// These are Tailwind v4 @theme inline duplicates that reference the actual variables
+		if (name.startsWith("color-") || name.startsWith("radius-")) {
+			continue;
+		}
+		// Skip tracking-tighter/tight/wide/wider/widest (calculated from tracking-normal)
+		if (name.match(/^tracking-(tighter|tight|wide|wider|widest)$/)) {
+			continue;
+		}
+
+		// Map CSS names to internal JSON format
+		if (name === "shadow-x") {
+			props["shadow-offset-x"] = value.trim();
+		} else if (name === "shadow-y") {
+			props["shadow-offset-y"] = value.trim();
+		} else if (name === "tracking-normal") {
+			props["letter-spacing"] = value.trim();
+		} else {
+			props[name] = value.trim();
+		}
+	}
+
+	return props as unknown as ThemeStyleProps;
+}
+
+/**
+ * Parse CSS export into ThemeToken format
+ * Accepts raw CSS with :root { } and .dark { } blocks
+ *
+ * @param css - Raw CSS string with :root and .dark blocks
+ * @param name - Theme name (defaults to "Custom Theme")
+ * @returns Parse result with theme or error message
+ *
+ * @example
+ * ```ts
+ * const css = `:root { --background: oklch(1 0 0); ... } .dark { ... }`
+ * const result = parseCss(css, 'My Theme')
+ * if (result.valid) {
+ *   console.log(result.theme)
+ * }
+ * ```
+ */
+export function parseCss(css: string, name = "Custom Theme"): ParseResult {
+	try {
+		// Extract :root block for light mode
+		const rootMatch = css.match(/:root\s*\{([^}]+)\}/);
+		// Extract .dark block for dark mode
+		const darkMatch = css.match(/\.dark\s*\{([^}]+)\}/);
+
+		if (!rootMatch) {
+			return { valid: false, error: "Missing :root { } block for light mode" };
+		}
+
+		const lightStyles = parseCssBlock(rootMatch[1]);
+		const darkStyles = darkMatch
+			? parseCssBlock(darkMatch[1])
+			: { ...lightStyles }; // Fall back to light if no dark
+
+		// Validate that we have required properties
+		const requiredProps = ["background", "foreground", "primary", "radius"];
+		for (const prop of requiredProps) {
+			if (!(prop in lightStyles)) {
+				return {
+					valid: false,
+					error: `Missing required property: --${prop}`,
+				};
+			}
+		}
+
+		// Parse @layer base rules if present
+		const cssRules = parseLayerBase(css);
+
+		const theme: ThemeToken = {
+			$schema: THEME_TOKEN_SCHEMA_URL,
+			name,
+			styles: {
+				light: lightStyles,
+				dark: darkStyles,
+			},
+			...(cssRules && { css: cssRules }),
+		};
+
+		return { valid: true, theme };
+	} catch (err) {
+		return {
+			valid: false,
+			error: err instanceof Error ? err.message : "Failed to parse CSS",
+		};
+	}
+}

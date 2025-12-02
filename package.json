@@ -1,0 +1,61 @@
+{
+  "name": "@theme-token/sdk",
+  "version": "0.0.1",
+  "description": "TypeScript SDK for Theme Token - validate, fetch, convert, and apply ShadCN themes from blockchain",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "bun test",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "prepublishOnly": "bun run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/b-open-io/theme-token-sdk.git"
+  },
+  "keywords": [
+    "shadcn",
+    "theme",
+    "theming",
+    "css",
+    "tailwind",
+    "blockchain",
+    "ordinals",
+    "bsv"
+  ],
+  "author": "Theme Token <hello@themetoken.dev>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/b-open-io/theme-token-sdk/issues"
+  },
+  "homepage": "https://themetoken.dev",
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.1.14",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}
