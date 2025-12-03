@@ -32,8 +32,8 @@ export function applyTheme(
 		return;
 	}
 
-	for (const key of Object.keys(styles)) {
-		const value = styles[key];
+	for (const [key, value] of Object.entries(styles)) {
+		if (typeof value !== "string") continue;
 		// Map internal names to CSS variable names
 		const cssKey =
 			key === "letter-spacing"

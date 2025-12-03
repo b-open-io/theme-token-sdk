@@ -189,16 +189,53 @@ function parseLayerBase(
 }
 
 /**
+ * Build a lookup map of all CSS variables from the full CSS
+ * Used for resolving var() references across :root and .dark blocks
+ */
+function buildVarLookup(fullCss: string): Record<string, string> {
+	const lookup: Record<string, string> = {};
+	const varRegex = /--([a-z0-9-]+)\s*:\s*([^;]+);/gi;
+	for (const match of fullCss.matchAll(varRegex)) {
+		// First occurrence wins (root variables take precedence)
+		if (!(match[1] in lookup)) {
+			lookup[match[1]] = match[2].trim();
+		}
+	}
+	return lookup;
+}
+
+/**
+ * Resolve var() references recursively using a lookup map
+ */
+function resolveVar(
+	value: string,
+	lookup: Record<string, string>,
+): string {
+	const varMatch = value.match(/^var\(--([a-z0-9-]+)\)$/i);
+	if (!varMatch) return value;
+
+	const refName = varMatch[1];
+	// Tailwind v4 built-ins
+	if (refName === "color-white") return "oklch(1 0 0)";
+	if (refName === "color-black") return "oklch(0 0 0)";
+
+	const resolved = lookup[refName];
+	return resolved ? resolveVar(resolved, lookup) : value;
+}
+
+/**
  * Parse CSS block into ThemeStyleProps
  * Maps CSS variable names to internal format:
  * - --shadow-x → shadow-offset-x
  * - --shadow-y → shadow-offset-y
  * - --tracking-normal → letter-spacing
+ * - var(--xxx) references are resolved to their actual values
  */
-function parseCssBlock(css: string): ThemeStyleProps {
+function parseCssBlock(
+	css: string,
+	varLookup: Record<string, string>,
+): ThemeStyleProps {
 	const props: Record<string, string> = {};
-
-	// Match CSS variable declarations: --name: value;
 	const varRegex = /--([a-z0-9-]+)\s*:\s*([^;]+);/gi;
 
 	for (const match of css.matchAll(varRegex)) {
@@ -213,15 +250,15 @@ function parseCssBlock(css: string): ThemeStyleProps {
 			continue;
 		}
 
-		// Map CSS names to internal JSON format
+		// Map CSS names to internal JSON format, resolving var() references
 		if (name === "shadow-x") {
-			props["shadow-offset-x"] = value.trim();
+			props["shadow-offset-x"] = resolveVar(value.trim(), varLookup);
 		} else if (name === "shadow-y") {
-			props["shadow-offset-y"] = value.trim();
+			props["shadow-offset-y"] = resolveVar(value.trim(), varLookup);
 		} else if (name === "tracking-normal") {
-			props["letter-spacing"] = value.trim();
+			props["letter-spacing"] = resolveVar(value.trim(), varLookup);
 		} else {
-			props[name] = value.trim();
+			props[name] = resolveVar(value.trim(), varLookup);
 		}
 	}
 
@@ -259,9 +296,13 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			return { valid: false, error: "Missing :root { } block for light mode" };
 		}
 
-		const lightStyles = parseCssBlock(rootMatch[1]);
+		// Build lookup of all variables from full CSS for resolving var() references
+		// This allows dark mode to reference variables defined in :root
+		const varLookup = buildVarLookup(css);
+
+		const lightStyles = parseCssBlock(rootMatch[1], varLookup);
 		const darkStyles = darkMatch
-			? parseCssBlock(darkMatch[1])
+			? parseCssBlock(darkMatch[1], varLookup)
 			: { ...lightStyles }; // Fall back to light if no dark
 
 		// Validate that we have required properties
@@ -273,6 +314,25 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 					error: `Missing required property: --${prop}`,
 				};
 			}
+		}
+
+		// Check for unresolved var() references
+		const unresolvedVars: string[] = [];
+		for (const [key, value] of Object.entries(lightStyles)) {
+			if (typeof value === "string" && value.startsWith("var(")) {
+				unresolvedVars.push(`--${key}`);
+			}
+		}
+		for (const [key, value] of Object.entries(darkStyles)) {
+			if (typeof value === "string" && value.startsWith("var(")) {
+				unresolvedVars.push(`--${key} (dark)`);
+			}
+		}
+		if (unresolvedVars.length > 0) {
+			return {
+				valid: false,
+				error: `Unresolved var() references: ${unresolvedVars.slice(0, 3).join(", ")}${unresolvedVars.length > 3 ? ` and ${unresolvedVars.length - 3} more` : ""}. Please paste CSS with resolved values.`,
+			};
 		}
 
 		// Parse @layer base rules if present
