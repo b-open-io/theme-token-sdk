@@ -134,10 +134,26 @@ export type ValidationResult =
 	| { valid: false; error: string };
 
 /**
+ * Metadata about parsed CSS
+ */
+export interface ParseMetadata {
+	/** Number of properties found in light mode */
+	lightPropertyCount: number;
+	/** Number of properties found in dark mode */
+	darkPropertyCount: number;
+	/** Total unique properties across both modes */
+	totalPropertyCount: number;
+	/** Whether :root block was found */
+	hasLightMode: boolean;
+	/** Whether .dark block was found */
+	hasDarkMode: boolean;
+}
+
+/**
  * Parse result type
  */
 export type ParseResult =
-	| { valid: true; theme: ThemeToken }
+	| { valid: true; theme: ThemeToken; metadata: ParseMetadata }
 	| { valid: false; error: string };
 
 /**
@@ -271,6 +287,9 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 		// Extract .dark block for dark mode
 		const darkMatch = css.match(/\.dark\s*\{([^}]+)\}/);
 
+		const hasLightMode = !!rootMatch;
+		const hasDarkMode = !!darkMatch;
+
 		if (!rootMatch) {
 			return { valid: false, error: "Missing :root { } block for light mode" };
 		}
@@ -304,7 +323,24 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			...(cssRules && { css: cssRules }),
 		};
 
-		return { valid: true, theme };
+		// Calculate property counts
+		const lightPropertyCount = Object.keys(lightStyles).length;
+		const darkPropertyCount = Object.keys(darkStyles).length;
+		const allProps = new Set([
+			...Object.keys(lightStyles),
+			...Object.keys(darkStyles),
+		]);
+		const totalPropertyCount = allProps.size;
+
+		const metadata: ParseMetadata = {
+			lightPropertyCount,
+			darkPropertyCount,
+			totalPropertyCount,
+			hasLightMode,
+			hasDarkMode,
+		};
+
+		return { valid: true, theme, metadata };
 	} catch (err) {
 		return {
 			valid: false,

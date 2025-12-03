@@ -26,6 +26,7 @@ export {
 	type CssRules,
 	type ValidationResult,
 	type ParseResult,
+	type ParseMetadata,
 } from "./schema";
 
 // Blockchain Fetching
