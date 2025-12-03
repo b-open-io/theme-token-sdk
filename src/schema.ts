@@ -14,79 +14,44 @@ export const THEME_TOKEN_SCHEMA_URL =
 	"https://themetoken.dev/v1/schema.json" as const;
 
 /**
- * Theme style properties - flat, kebab-case, matches ShadCN CSS vars
+ * Core required theme properties (flat, kebab-case, matches ShadCN CSS vars)
  */
-export const themeStylePropsSchema = z
-	.object({
-		// Core colors (required)
-		background: z.string(),
-		foreground: z.string(),
-		card: z.string(),
-		"card-foreground": z.string(),
-		popover: z.string(),
-		"popover-foreground": z.string(),
-		primary: z.string(),
-		"primary-foreground": z.string(),
-		secondary: z.string(),
-		"secondary-foreground": z.string(),
-		muted: z.string(),
-		"muted-foreground": z.string(),
-		accent: z.string(),
-		"accent-foreground": z.string(),
-		destructive: z.string(),
-		"destructive-foreground": z.string(),
-		border: z.string(),
-		input: z.string(),
-		ring: z.string(),
+const corePropsSchema = z.object({
+	background: z.string(),
+	foreground: z.string(),
+	card: z.string(),
+	"card-foreground": z.string(),
+	popover: z.string(),
+	"popover-foreground": z.string(),
+	primary: z.string(),
+	"primary-foreground": z.string(),
+	secondary: z.string(),
+	"secondary-foreground": z.string(),
+	muted: z.string(),
+	"muted-foreground": z.string(),
+	accent: z.string(),
+	"accent-foreground": z.string(),
+	destructive: z.string(),
+	"destructive-foreground": z.string(),
+	border: z.string(),
+	input: z.string(),
+	ring: z.string(),
+	radius: z.string(),
+});
 
-		// Charts (optional)
-		"chart-1": z.string().optional(),
-		"chart-2": z.string().optional(),
-		"chart-3": z.string().optional(),
-		"chart-4": z.string().optional(),
-		"chart-5": z.string().optional(),
+/**
+ * Theme style properties schema
+ * Core properties are required, additional properties are allowed
+ */
+export const themeStylePropsSchema = corePropsSchema.catchall(z.string());
 
-		// Sidebar (optional)
-		sidebar: z.string().optional(),
-		"sidebar-foreground": z.string().optional(),
-		"sidebar-primary": z.string().optional(),
-		"sidebar-primary-foreground": z.string().optional(),
-		"sidebar-accent": z.string().optional(),
-		"sidebar-accent-foreground": z.string().optional(),
-		"sidebar-border": z.string().optional(),
-		"sidebar-ring": z.string().optional(),
-
-		// Typography (optional)
-		"font-sans": z.string().optional(),
-		"font-serif": z.string().optional(),
-		"font-mono": z.string().optional(),
-
-		// Dimensions
-		radius: z.string(),
-		"letter-spacing": z.string().optional(),
-		spacing: z.string().optional(),
-
-		// Shadow components (optional)
-		"shadow-color": z.string().optional(),
-		"shadow-opacity": z.string().optional(),
-		"shadow-blur": z.string().optional(),
-		"shadow-spread": z.string().optional(),
-		"shadow-offset-x": z.string().optional(),
-		"shadow-offset-y": z.string().optional(),
-
-		// Shadow presets (optional)
-		"shadow-2xs": z.string().optional(),
-		"shadow-xs": z.string().optional(),
-		"shadow-sm": z.string().optional(),
-		shadow: z.string().optional(),
-		"shadow-md": z.string().optional(),
-		"shadow-lg": z.string().optional(),
-		"shadow-xl": z.string().optional(),
-		"shadow-2xl": z.string().optional(),
-	})
-	.catchall(z.string());
-
-export type ThemeStyleProps = z.infer<typeof themeStylePropsSchema>;
+/**
+ * Theme style properties type
+ * Core required properties plus any additional string properties
+ */
+export type ThemeStyleProps = z.infer<typeof corePropsSchema> & {
+	[key: string]: string;
+};
 
 /**
  * Theme styles with light and dark modes
