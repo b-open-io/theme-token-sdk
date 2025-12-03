@@ -22,27 +22,28 @@ import type { ThemeStyleProps, ThemeToken } from "./schema";
  * applyTheme(theme.styles.dark)
  * ```
  */
-export function applyTheme(styles: ThemeStyleProps): void {
-	if (typeof document === "undefined") {
-		console.warn("[applyTheme] No document available (not in browser)");
+export function applyTheme(
+	styles: ThemeStyleProps,
+	element?: HTMLElement,
+): void {
+	const target = element ?? (typeof document !== "undefined" ? document.documentElement : null);
+	if (!target) {
+		console.warn("[applyTheme] No target element available");
 		return;
 	}
 
-	const root = document.documentElement;
-
-	for (const [key, value] of Object.entries(styles)) {
-		if (value !== undefined) {
-			// Map internal names to CSS variable names
-			const cssKey =
-				key === "letter-spacing"
-					? "tracking-normal"
-					: key === "shadow-offset-x"
-						? "shadow-x"
-						: key === "shadow-offset-y"
-							? "shadow-y"
-							: key;
-			root.style.setProperty(`--${cssKey}`, value);
-		}
+	for (const key of Object.keys(styles)) {
+		const value = styles[key];
+		// Map internal names to CSS variable names
+		const cssKey =
+			key === "letter-spacing"
+				? "tracking-normal"
+				: key === "shadow-offset-x"
+					? "shadow-x"
+					: key === "shadow-offset-y"
+						? "shadow-y"
+						: key;
+		target.style.setProperty(`--${cssKey}`, value);
 	}
 }
 
