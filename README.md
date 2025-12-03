@@ -1,6 +1,23 @@
 # @theme-token/sdk
 
-TypeScript SDK for [Theme Token](https://themetoken.dev) - validate, fetch, convert, and apply ShadCN-compatible themes from the Bitcoin blockchain.
+The core library for [Theme Token](https://themetoken.dev). Handles validation, parsing, and transformation of themes between raw CSS, on-chain storage format, and ShadCN Registry format.
+
+## Why This Exists
+
+ShadCN CLI (`bunx shadcn add <url>`) expects a specific JSON format with resolved color values—not raw CSS. This SDK bridges that gap:
+
+```
+Raw CSS (from tweakcn, etc.)
+    ↓ parseCss() - resolves var() references
+ThemeToken JSON
+    ↓ inscribed on Bitcoin
+On-chain NFT
+    ↓ fetched by registry API
+    ↓ toShadcnRegistry()
+ShadCN Registry JSON
+    ↓
+bunx shadcn add https://themetoken.dev/r/themes/ORIGIN
+```
 
 ## Installation
 
@@ -10,161 +27,114 @@ bun add @theme-token/sdk
 npm install @theme-token/sdk
 ```
 
-## Features
+## Usage
 
-- **Validation** - Zod schemas for ThemeToken format
-- **Fetching** - Retrieve themes from blockchain
-- **Transformation** - Convert between ThemeToken, CSS, and ShadCN Registry formats
-- **Runtime** - Apply themes to DOM at runtime
+### Parse CSS to ThemeToken
 
-## Quick Start
+Convert raw CSS (from tweakcn or similar) into structured JSON for inscription. Automatically resolves `var()` references.
 
 ```typescript
-import {
-  fetchThemeByOrigin,
-  validateThemeToken,
-  toShadcnRegistry,
-  toCss,
-  applyThemeMode,
-} from "@theme-token/sdk";
+import { parseCss } from "@theme-token/sdk";
 
-// Fetch a theme from the blockchain
-const published = await fetchThemeByOrigin("65481b3b...b0_0");
-if (published) {
-  // Apply it to the page
-  applyThemeMode(published.theme, "dark");
-
-  // Convert to CSS
-  const css = toCss(published.theme);
-
-  // Get ShadCN registry format
-  const registry = toShadcnRegistry(published.theme);
+const css = `
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --primary: oklch(0.6 0.15 250);
+  --primary-foreground: oklch(0.98 0 0);
+  /* ... */
+  --radius: 0.5rem;
 }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.98 0 0);
+  /* ... */
+}
+`;
+
+const result = parseCss(css, "My Theme");
+if (result.valid) {
+  console.log(result.theme); // Ready to inscribe
+}
+```
+
+### Transform to ShadCN Registry
+
+Convert a ThemeToken to the format expected by `bunx shadcn add`:
+
+```typescript
+import { toShadcnRegistry } from "@theme-token/sdk";
+
+const registryItem = toShadcnRegistry(theme);
+// { $schema: "...", name: "...", type: "registry:style", cssVars: { light: {...}, dark: {...} } }
+```
+
+### Fetch from Blockchain
+
+```typescript
+import { fetchThemeByOrigin } from "@theme-token/sdk";
+
+const published = await fetchThemeByOrigin("85702d92...cf_0");
+if (published) {
+  console.log(published.theme.name);
+}
+```
+
+### Apply at Runtime
+
+```typescript
+import { applyThemeMode } from "@theme-token/sdk";
+
+// Apply theme to document
+applyThemeMode(theme, "dark");
+```
+
+### Convert to CSS
+
+```typescript
+import { toCss } from "@theme-token/sdk";
+
+const css = toCss(theme);
+// :root { --background: oklch(...); ... }
+// .dark { --background: oklch(...); ... }
 ```
 
 ## API Reference
 
-### Schema & Validation
+### Parsing & Validation
 
-```typescript
-import {
-  validateThemeToken,
-  parseCss,
-  themeTokenSchema,
-  THEME_TOKEN_SCHEMA_URL,
-} from "@theme-token/sdk";
+| Function | Description |
+|----------|-------------|
+| `parseCss(css, name?)` | Parse CSS string to ThemeToken, resolving var() references |
+| `validateThemeToken(data)` | Validate unknown JSON against schema |
+| `themeTokenSchema` | Zod schema for direct validation |
 
-// Validate unknown JSON
-const result = validateThemeToken(json);
-if (result.valid) {
-  console.log(result.theme.name);
-} else {
-  console.error(result.error);
-}
+### Transformation
 
-// Parse CSS from TweakCN or other tools
-const parsed = parseCss(cssString, "My Theme");
-if (parsed.valid) {
-  console.log(parsed.theme);
-}
+| Function | Description |
+|----------|-------------|
+| `toShadcnRegistry(theme)` | Convert to ShadCN Registry format |
+| `toCss(theme)` | Convert to CSS string |
+| `toJson(theme, pretty?)` | Convert to JSON string |
 
-// Use Zod schema directly
-const validated = themeTokenSchema.parse(data);
-```
+### Network
 
-### Blockchain Fetching
+| Function | Description |
+|----------|-------------|
+| `fetchThemeByOrigin(origin)` | Fetch theme from blockchain |
+| `fetchPublishedThemes()` | Fetch all published themes |
+| `getRegistryUrl(origin)` | Get registry URL for ShadCN CLI |
 
-```typescript
-import {
-  fetchThemeByOrigin,
-  fetchPublishedThemes,
-  getRegistryUrl,
-} from "@theme-token/sdk";
+### Runtime (Browser)
 
-// Fetch a specific theme by origin outpoint
-const theme = await fetchThemeByOrigin("abc123_0");
+| Function | Description |
+|----------|-------------|
+| `applyTheme(styles)` | Apply style props to document |
+| `applyThemeMode(theme, mode)` | Apply light or dark mode |
+| `getCurrentTheme()` | Read current theme from DOM |
+| `clearTheme()` | Remove all theme variables |
 
-// Fetch all published themes
-const allThemes = await fetchPublishedThemes();
-
-// Get the registry URL for shadcn CLI
-const url = getRegistryUrl("abc123_0");
-// => "https://themetoken.dev/r/themes/abc123_0"
-```
-
-### Format Transformations
-
-```typescript
-import {
-  toShadcnRegistry,
-  toCss,
-  toJson,
-  createThemeToken,
-} from "@theme-token/sdk";
-
-// Convert to ShadCN Registry format
-const registryItem = toShadcnRegistry(theme);
-// Use with: npx shadcn add https://themetoken.dev/r/themes/abc123_0
-
-// Convert to CSS
-const css = toCss(theme);
-// Outputs :root { ... } and .dark { ... }
-
-// Convert to JSON string
-const json = toJson(theme, true); // pretty-printed
-
-// Create a new theme with defaults
-const newTheme = createThemeToken("My Theme", {
-  primary: "oklch(0.7 0.15 240)",
-  background: "oklch(0.98 0.01 240)",
-});
-```
-
-### Runtime Application (Browser)
-
-```typescript
-import {
-  applyTheme,
-  applyThemeMode,
-  getCurrentTheme,
-  clearTheme,
-  toggleThemeMode,
-} from "@theme-token/sdk";
-
-// Apply styles directly
-applyTheme(theme.styles.light);
-
-// Apply a specific mode
-applyThemeMode(theme, "dark");
-
-// Read current theme from DOM
-const current = getCurrentTheme();
-console.log(current.primary);
-
-// Clear all theme variables
-clearTheme();
-
-// Toggle between light/dark
-const newMode = toggleThemeMode(theme);
-```
-
-## Types
-
-```typescript
-import type {
-  ThemeToken,
-  ThemeStyles,
-  ThemeStyleProps,
-  ValidationResult,
-  ParseResult,
-  PublishedTheme,
-  ShadcnRegistryItem,
-} from "@theme-token/sdk";
-```
-
-### ThemeToken
-
-The core theme format:
+## ThemeToken Format
 
 ```typescript
 interface ThemeToken {
@@ -175,82 +145,10 @@ interface ThemeToken {
     light: ThemeStyleProps;
     dark: ThemeStyleProps;
   };
-  css?: {
-    "@layer base"?: Record<string, Record<string, string>>;
-  };
 }
 ```
 
-### ThemeStyleProps
-
-Required color properties (19 required, many optional):
-
-```typescript
-interface ThemeStyleProps {
-  // Required (19 colors)
-  background: string;
-  foreground: string;
-  card: string;
-  "card-foreground": string;
-  popover: string;
-  "popover-foreground": string;
-  primary: string;
-  "primary-foreground": string;
-  secondary: string;
-  "secondary-foreground": string;
-  muted: string;
-  "muted-foreground": string;
-  accent: string;
-  "accent-foreground": string;
-  destructive: string;
-  "destructive-foreground": string;
-  border: string;
-  input: string;
-  ring: string;
-  radius: string;
-
-  // Optional
-  "chart-1"?: string;
-  "chart-2"?: string;
-  // ... sidebar, typography, shadow properties
-}
-```
-
-## Color Format
-
-All colors use OKLCH format:
-
-```
-oklch(L C H)
-```
-
-- **L** (Lightness): 0-1 (0 = black, 1 = white)
-- **C** (Chroma): 0-0.4 (0 = gray, higher = more saturated)
-- **H** (Hue): 0-360 degrees
-
-Examples:
-
-```css
-oklch(0.95 0.02 240)  /* Light blue-gray */
-oklch(0.6 0.15 145)   /* Forest green */
-oklch(0.7 0.25 330)   /* Magenta */
-```
-
-## Using with ShadCN
-
-```bash
-# Add a theme directly from the registry
-npx shadcn add https://themetoken.dev/r/themes/YOUR_THEME_ORIGIN
-```
-
-Or programmatically:
-
-```typescript
-import { getRegistryUrl } from "@theme-token/sdk";
-
-const url = getRegistryUrl(origin);
-// Pass to shadcn CLI or use in your build process
-```
+All colors use OKLCH format: `oklch(L C H)` where L=lightness (0-1), C=chroma (0-0.4), H=hue (0-360).
 
 ## License
 
