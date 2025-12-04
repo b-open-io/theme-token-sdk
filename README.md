@@ -80,6 +80,46 @@ import { applyThemeMode } from "@theme-token/sdk";
 applyThemeMode(theme, "dark");
 ```
 
+### React Hook
+
+For React applications, use the dedicated hook from the `/react` entry:
+
+```tsx
+import { useThemeToken } from "@theme-token/sdk/react";
+
+function ThemePicker({ ordinals }) {
+  const {
+    themeTokens,    // Filtered ThemeToken ordinals
+    activeOrigin,   // Currently applied theme origin
+    loadTheme,      // Load theme by origin
+    resetTheme,     // Reset to default
+    isLoading,      // Loading state
+    error           // Error state
+  } = useThemeToken(ordinals);
+
+  return (
+    <div>
+      {themeTokens.map(t => (
+        <button
+          key={t.origin}
+          onClick={() => loadTheme(t.origin)}
+          disabled={isLoading}
+        >
+          {t.origin === activeOrigin ? "✓ " : ""}{t.origin.slice(0, 8)}...
+        </button>
+      ))}
+      <button onClick={resetTheme}>Reset</button>
+    </div>
+  );
+}
+```
+
+The hook automatically:
+- Filters ordinals for `map.app === "ThemeToken"`
+- Persists selection to localStorage
+- Restores saved theme on mount
+- Detects light/dark mode from document
+
 ### Convert to CSS
 
 ```typescript
@@ -126,6 +166,12 @@ const css = toCss(theme);
 | `applyThemeMode(theme, mode)` | Apply light or dark mode |
 | `getCurrentTheme()` | Read current theme from DOM |
 | `clearTheme()` | Remove all theme variables |
+
+### React (`@theme-token/sdk/react`)
+
+| Export | Description |
+|:-------|:------------|
+| `useThemeToken(ordinals)` | React hook for managing ThemeToken ordinals |
 
 ---
 

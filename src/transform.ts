@@ -260,3 +260,116 @@ export function createThemeToken(
 		},
 	};
 }
+
+/**
+ * Generate Tailwind v4 CSS config snippet
+ *
+ * Creates CSS that can be added to globals.css for Tailwind v4 projects.
+ * Tailwind v4 uses CSS-native configuration with @theme directive.
+ *
+ * @param theme - A validated ThemeToken
+ * @returns Tailwind v4 CSS config string
+ *
+ * @example
+ * ```ts
+ * const config = toTailwindConfig(theme)
+ * // Add to your globals.css
+ * ```
+ */
+export function toTailwindConfig(theme: ThemeToken): string {
+	const { light, dark } = theme.styles;
+	const lines: string[] = [];
+
+	// Tailwind v4 uses @theme for design tokens
+	lines.push("@theme {");
+	lines.push("  /* Colors */");
+
+	// Map semantic colors to Tailwind color utilities
+	const colorKeys = [
+		"background",
+		"foreground",
+		"card",
+		"card-foreground",
+		"popover",
+		"popover-foreground",
+		"primary",
+		"primary-foreground",
+		"secondary",
+		"secondary-foreground",
+		"muted",
+		"muted-foreground",
+		"accent",
+		"accent-foreground",
+		"destructive",
+		"destructive-foreground",
+		"border",
+		"input",
+		"ring",
+	];
+
+	for (const key of colorKeys) {
+		lines.push(`  --color-${key}: var(--${key});`);
+	}
+
+	// Add radius
+	lines.push("");
+	lines.push("  /* Border Radius */");
+	lines.push("  --radius-sm: calc(var(--radius) - 4px);");
+	lines.push("  --radius-md: calc(var(--radius) - 2px);");
+	lines.push("  --radius-lg: var(--radius);");
+	lines.push("  --radius-xl: calc(var(--radius) + 4px);");
+
+	lines.push("}");
+	lines.push("");
+
+	// Add the CSS variables
+	lines.push("/* Light mode (default) */");
+	lines.push(":root {");
+	for (const [key, value] of Object.entries(light)) {
+		if (value !== undefined) {
+			lines.push(`  --${key}: ${value};`);
+		}
+	}
+	lines.push("}");
+	lines.push("");
+
+	lines.push("/* Dark mode */");
+	lines.push(".dark {");
+	for (const [key, value] of Object.entries(dark)) {
+		if (value !== undefined) {
+			lines.push(`  --${key}: ${value};`);
+		}
+	}
+	lines.push("}");
+
+	return lines.join("\n");
+}
+
+/**
+ * Generate ShadCN CLI command for an inscribed theme
+ *
+ * Creates a command that users can run to add the theme to their project.
+ *
+ * @param origin - The theme's origin outpoint (e.g., "abc123_0")
+ * @returns CLI command string
+ *
+ * @example
+ * ```ts
+ * const cmd = toShadcnCliCommand('65481b3b...b0_0')
+ * // Returns: npx shadcn@latest add https://themetoken.dev/r/themes/65481b3b...b0_0
+ * ```
+ */
+export function toShadcnCliCommand(origin: string): string {
+	const registryUrl = `https://themetoken.dev/r/themes/${origin}`;
+	return `npx shadcn@latest add ${registryUrl}`;
+}
+
+/**
+ * Generate the registry URL for a theme
+ *
+ * @param origin - The theme's origin outpoint
+ * @returns Full registry URL
+ */
+export function getThemeRegistryUrl(origin: string): string {
+	return `https://themetoken.dev/r/themes/${origin}`;
+}

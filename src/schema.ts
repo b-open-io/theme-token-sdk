@@ -207,10 +207,7 @@ function buildVarLookup(fullCss: string): Record<string, string> {
 /**
  * Resolve var() references recursively using a lookup map
  */
-function resolveVar(
-	value: string,
-	lookup: Record<string, string>,
-): string {
+function resolveVar(value: string, lookup: Record<string, string>): string {
 	const varMatch = value.match(/^var\(--([a-z0-9-]+)\)$/i);
 	if (!varMatch) return value;
 

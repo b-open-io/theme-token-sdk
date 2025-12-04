@@ -44,6 +44,9 @@ export {
 	toCss,
 	toJson,
 	createThemeToken,
+	toTailwindConfig,
+	toShadcnCliCommand,
+	getThemeRegistryUrl,
 	type ShadcnRegistryItem,
 } from "./transform";
 

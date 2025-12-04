@@ -26,7 +26,9 @@ export function applyTheme(
 	styles: ThemeStyleProps,
 	element?: HTMLElement,
 ): void {
-	const target = element ?? (typeof document !== "undefined" ? document.documentElement : null);
+	const target =
+		element ??
+		(typeof document !== "undefined" ? document.documentElement : null);
 	if (!target) {
 		console.warn("[applyTheme] No target element available");
 		return;
