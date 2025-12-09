@@ -6,6 +6,7 @@
  */
 
 import type { ThemeStyleProps, ThemeToken } from "./schema";
+import { loadThemeAssets } from "./assets";
 
 /**
  * Apply theme styles to document root
@@ -65,6 +66,52 @@ export function applyThemeMode(
 	mode: "light" | "dark",
 ): void {
 	applyTheme(theme.styles[mode]);
+}
+
+/**
+ * Apply theme styles and load on-chain assets (fonts, patterns)
+ *
+ * This is the async version of applyTheme that also loads any
+ * on-chain fonts or patterns referenced in the theme.
+ *
+ * @param styles - Theme style properties to apply
+ * @param element - Optional target element (defaults to documentElement)
+ *
+ * @example
+ * ```ts
+ * await applyThemeWithAssets(theme.styles.light)
+ * // On-chain fonts and patterns are now loaded
+ * ```
+ */
+export async function applyThemeWithAssets(
+	styles: ThemeStyleProps,
+	element?: HTMLElement,
+): Promise<void> {
+	// Apply CSS vars first (instant)
+	applyTheme(styles, element);
+
+	// Then load any on-chain assets (may take time)
+	await loadThemeAssets(styles as Record<string, string>);
+}
+
+/**
+ * Apply a theme mode and load on-chain assets
+ *
+ * Async version of applyThemeMode that also loads fonts/patterns.
+ *
+ * @param theme - A ThemeToken
+ * @param mode - Which mode to apply ('light' or 'dark')
+ *
+ * @example
+ * ```ts
+ * await applyThemeModeWithAssets(theme, 'dark')
+ * ```
+ */
+export async function applyThemeModeWithAssets(
+	theme: ThemeToken,
+	mode: "light" | "dark",
+): Promise<void> {
+	await applyThemeWithAssets(theme.styles[mode]);
 }
 
 /**

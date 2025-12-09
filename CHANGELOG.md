@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.9] - 2024-12-09
+
+### Added
+
+- **ThemeTokenProvider** - React context provider for easy integration
+  - Wrap your app to enable theme loading from the blockchain
+  - Automatic localStorage persistence of selected theme
+  - Re-applies theme when light/dark mode changes
+  - Loads on-chain assets (fonts, patterns) automatically
+  - `mode` prop to sync with your app's light/dark state
+  - `storageKey` prop for custom localStorage key
+  - `defaultOrigin` prop to load a theme on first visit
+- **useThemeTokenContext()** - Hook to access ThemeToken state anywhere in the app
+  - `activeTheme` - Currently loaded ThemeToken or null
+  - `activeOrigin` - Origin of active theme
+  - `loadTheme(origin)` - Load a theme by origin
+  - `resetTheme()` - Clear theme and return to defaults
+  - `isLoading` / `error` - Loading and error states
+- **On-Chain Asset Loading**
+  - `loadFontByOrigin()` - Load blockchain-inscribed fonts
+  - `loadPatternByOrigin()` - Load blockchain-inscribed patterns/images
+  - `loadThemeAssets()` - Load all assets referenced in a theme
+  - `applyThemeWithAssets()` - Apply theme and load assets
+  - `applyThemeModeWithAssets()` - Apply mode and load assets
+  - Font and pattern caching utilities
+
+### Changed
+
+- Renamed `src/react.ts` to `src/react.tsx` for JSX support
+- Added `jsx: "react-jsx"` to tsconfig for proper JSX compilation
+
 ## [0.0.1] - 2024-12-02
 
 ### Added

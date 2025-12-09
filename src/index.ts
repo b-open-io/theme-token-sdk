@@ -54,7 +54,30 @@ export {
 export {
 	applyTheme,
 	applyThemeMode,
+	applyThemeWithAssets,
+	applyThemeModeWithAssets,
 	getCurrentTheme,
 	clearTheme,
 	toggleThemeMode,
 } from "./apply";
+
+// On-Chain Asset Loading (browser only)
+export {
+	// Path utilities
+	isOnChainPath,
+	extractOrigin,
+	getContentUrl,
+	// Font loading
+	loadFontByOrigin,
+	isFontLoaded,
+	getCachedFont,
+	clearFontCache,
+	// Pattern/Image loading
+	loadPatternByOrigin,
+	isPatternLoaded,
+	clearPatternCache,
+	// Theme asset loading
+	loadThemeAssets,
+	// Types
+	type LoadedFont,
+} from "./assets";
