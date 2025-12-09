@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.10] - 2024-12-09
+
+### Changed
+
+- **ThemeTokenProvider** now auto-detects light/dark mode changes
+  - Uses MutationObserver to watch for `.dark` class on `<html>`
+  - No `mode` prop needed - just wrap your app and it works
+  - Automatically re-applies theme when mode changes
+
+### Removed
+
+- Removed `mode` prop from ThemeTokenProvider (no longer needed)
+
 ## [0.0.9] - 2024-12-09
 
 ### Added

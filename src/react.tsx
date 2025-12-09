@@ -191,12 +191,6 @@ const ThemeTokenContext = createContext<ThemeTokenContextValue | null>(null);
 export interface ThemeTokenProviderProps {
 	children: ReactNode;
 	/**
-	 * Current color mode ('light' or 'dark')
-	 * The provider will re-apply the theme when this changes.
-	 * If not provided, defaults to detecting from document.documentElement.classList
-	 */
-	mode?: "light" | "dark";
-	/**
 	 * Custom storage key for persisting theme selection
 	 * @default "themetoken-active"
 	 */
@@ -208,13 +202,22 @@ export interface ThemeTokenProviderProps {
 }
 
 /**
+ * Detect current color mode from document.documentElement
+ */
+function detectMode(): "light" | "dark" {
+	if (typeof document === "undefined") return "light";
+	return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
+
+/**
  * Provider component for ThemeToken integration
  *
  * Wrap your app with this provider to enable theme loading from the blockchain.
  * The provider handles:
  * - Loading themes by origin
  * - Persisting selection to localStorage
- * - Re-applying theme when light/dark mode changes
+ * - Automatically detecting light/dark mode changes (watches for .dark class)
+ * - Re-applying theme when mode changes
  * - Loading on-chain assets (fonts, patterns)
  *
  * @example
@@ -222,10 +225,8 @@ export interface ThemeTokenProviderProps {
  * import { ThemeTokenProvider } from '@theme-token/sdk/react'
  *
  * function App() {
- *   const { resolvedTheme } = useYourThemeHook() // your app's theme state
- *
  *   return (
- *     <ThemeTokenProvider mode={resolvedTheme}>
+ *     <ThemeTokenProvider>
  *       <YourApp />
  *     </ThemeTokenProvider>
  *   )
@@ -244,7 +245,6 @@ export interface ThemeTokenProviderProps {
  */
 export function ThemeTokenProvider({
 	children,
-	mode,
 	storageKey = PROVIDER_STORAGE_KEY,
 	defaultOrigin,
 }: ThemeTokenProviderProps) {
@@ -252,15 +252,27 @@ export function ThemeTokenProvider({
 	const [activeOrigin, setActiveOrigin] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
+	const [mode, setMode] = useState<"light" | "dark">(detectMode);
 
-	// Detect mode from DOM if not provided
-	const resolvedMode = useMemo(() => {
-		if (mode) return mode;
-		if (typeof document === "undefined") return "light";
-		return document.documentElement.classList.contains("dark")
-			? "dark"
-			: "light";
-	}, [mode]);
+	// Watch for dark mode changes via MutationObserver
+	useEffect(() => {
+		if (typeof document === "undefined") return;
+
+		const observer = new MutationObserver((mutations) => {
+			for (const mutation of mutations) {
+				if (mutation.attributeName === "class") {
+					setMode(detectMode());
+				}
+			}
+		});
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ["class"],
+		});
+
+		return () => observer.disconnect();
+	}, []);
 
 	// Internal load function
 	const loadThemeInternal = useCallback(
@@ -282,7 +294,7 @@ export function ThemeTokenProvider({
 				}
 
 				// Apply immediately with current mode
-				await applyThemeModeWithAssets(published.theme, resolvedMode);
+				await applyThemeModeWithAssets(published.theme, mode);
 			} catch (err) {
 				const error = err instanceof Error ? err : new Error(String(err));
 				setError(error);
@@ -291,7 +303,7 @@ export function ThemeTokenProvider({
 				setIsLoading(false);
 			}
 		},
-		[resolvedMode, storageKey],
+		[mode, storageKey],
 	);
 
 	// Public load function
@@ -329,9 +341,9 @@ export function ThemeTokenProvider({
 	// Re-apply theme when mode changes
 	useEffect(() => {
 		if (activeTheme) {
-			applyThemeModeWithAssets(activeTheme, resolvedMode).catch(console.error);
+			applyThemeModeWithAssets(activeTheme, mode).catch(console.error);
 		}
-	}, [activeTheme, resolvedMode]);
+	}, [activeTheme, mode]);
 
 	const value = useMemo(
 		() => ({
