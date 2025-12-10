@@ -9,6 +9,7 @@ import {
 	type ThemeStyleProps,
 	type ThemeToken,
 } from "./schema";
+import { isOnChainPath, extractOrigin, getContentUrl } from "./assets";
 
 /**
  * ShadCN Registry item format
@@ -18,14 +19,54 @@ export interface ShadcnRegistryItem {
 	$schema: string;
 	name: string;
 	type: "registry:style";
-	css: {
-		"@layer base": Record<string, Record<string, string>>;
-	};
+	css: Record<string, unknown>;
 	cssVars: {
 		theme: Record<string, string>;
 		light: Record<string, string>;
 		dark: Record<string, string>;
 	};
+}
+
+/** System font fallback stacks */
+const SYSTEM_FONT_STACKS = {
+	sans: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+	serif: "ui-serif, Georgia, Cambria, Times New Roman, serif",
+	mono: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace",
+} as const;
+
+/**
+ * Generate a unique font family name from an origin
+ */
+function generateFontFamilyName(origin: string): string {
+	return `tt-${origin.slice(0, 8)}`;
+}
+
+/**
+ * Extract on-chain font references from theme styles
+ * Returns info needed to generate @font-face rules
+ */
+function extractOnChainFonts(
+	light: ThemeStyleProps,
+	dark: ThemeStyleProps,
+): Array<{ slot: "sans" | "serif" | "mono"; origin: string; familyName: string }> {
+	const fonts: Array<{ slot: "sans" | "serif" | "mono"; origin: string; familyName: string }> = [];
+	const slots = ["sans", "serif", "mono"] as const;
+
+	for (const slot of slots) {
+		const value = (light[`font-${slot}`] || dark[`font-${slot}`]) as string | undefined;
+		if (value && isOnChainPath(value)) {
+			const origin = extractOrigin(value);
+			if (origin) {
+				fonts.push({
+					slot,
+					origin,
+					familyName: generateFontFamilyName(origin),
+				});
+			}
+		}
+	}
+
+	return fonts;
 }
 
 /**
@@ -74,6 +115,7 @@ function toRegistryVars(props: ThemeStyleProps): Record<string, string> {
  * Convert ThemeToken to ShadCN Registry format
  *
  * Creates a registry item compatible with `npx shadcn add <url>`
+ * Automatically generates @font-face rules for on-chain font references.
  *
  * @param theme - A validated ThemeToken
  * @returns ShadCN Registry item
@@ -87,24 +129,51 @@ function toRegistryVars(props: ThemeStyleProps): Record<string, string> {
 export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 	const { light, dark } = theme.styles;
 
+	// Extract on-chain font references
+	const onChainFonts = extractOnChainFonts(light, dark);
+
+	// Build font-family values, using generated names for on-chain fonts
+	const fontValues: Record<string, string> = {
+		"font-sans": getThemeValue(light, dark, "font-sans") || "Inter, sans-serif",
+		"font-mono": getThemeValue(light, dark, "font-mono") || "monospace",
+		"font-serif": getThemeValue(light, dark, "font-serif") || "serif",
+	};
+
+	// Replace on-chain paths with generated font-family names + fallbacks
+	for (const font of onChainFonts) {
+		fontValues[`font-${font.slot}`] = `"${font.familyName}", ${SYSTEM_FONT_STACKS[font.slot]}`;
+	}
+
+	// Build CSS object with @layer base
+	const css: Record<string, unknown> = {
+		"@layer base": {
+			body: {
+				"letter-spacing": "var(--tracking-normal)",
+			},
+		},
+	};
+
+	// Add @font-face rules for on-chain fonts
+	for (const font of onChainFonts) {
+		const fontUrl = getContentUrl(font.origin);
+		css[`@font-face-${font.slot}`] = {
+			"font-family": `"${font.familyName}"`,
+			src: `url("${fontUrl}") format("woff2")`,
+			"font-weight": "100 900",
+			"font-style": "normal",
+			"font-display": "swap",
+		};
+	}
+
 	return {
 		$schema: "https://ui.shadcn.com/schema/registry-item.json",
 		name: toShadcnName(theme.name),
 		type: "registry:style",
-		css: {
-			"@layer base": {
-				body: {
-					"letter-spacing": "var(--tracking-normal)",
-				},
-			},
-		},
+		css,
 		cssVars: {
 			// Shared theme vars (fonts, radius, tracking calculations)
 			theme: {
-				"font-sans":
-					getThemeValue(light, dark, "font-sans") || "Inter, sans-serif",
-				"font-mono": getThemeValue(light, dark, "font-mono") || "monospace",
-				"font-serif": getThemeValue(light, dark, "font-serif") || "serif",
+				...fontValues,
 				radius: getThemeValue(light, dark, "radius") || "0.5rem",
 				"tracking-tighter": "calc(var(--tracking-normal) - 0.05em)",
 				"tracking-tight": "calc(var(--tracking-normal) - 0.025em)",

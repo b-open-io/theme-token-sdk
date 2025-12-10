@@ -77,14 +77,44 @@ export const cssRulesSchema = z
 export type CssRules = z.infer<typeof cssRulesSchema>;
 
 /**
+ * Bundle asset definition for theme bundles
+ * Describes sibling inscriptions in the same transaction
+ */
+export const bundleAssetSchema = z.object({
+	/** Output index in the transaction (0, 1, 2, etc.) */
+	vout: z.number().int().min(0),
+	/** Asset type */
+	type: z.enum(["font", "pattern", "wallpaper", "icon"]),
+	/** Slot this asset fills (e.g., "sans", "background", "hero") */
+	slot: z.string(),
+});
+
+export type BundleAsset = z.infer<typeof bundleAssetSchema>;
+
+/**
+ * Bundle metadata for themes with associated assets
+ * Assets are inscribed first (lower vout indices), theme last
+ */
+export const bundleSchema = z.object({
+	/** Bundle format version */
+	version: z.literal(1),
+	/** Array of assets in this bundle */
+	assets: z.array(bundleAssetSchema),
+});
+
+export type ThemeBundle = z.infer<typeof bundleSchema>;
+
+/**
  * Theme Token schema
  * Required: $schema, name, styles
- * Optional: author (paymail/identity), css
+ * Optional: author (paymail/identity), css, bundle (for theme bundles)
  */
 export const themeTokenSchema = z.object({
 	$schema: z.string(),
 	name: z.string(),
 	author: z.string().optional(),
+	/** Bundle metadata for themes with associated assets */
+	bundle: bundleSchema.optional(),
 	styles: themeStylesSchema,
 	css: cssRulesSchema,
 });

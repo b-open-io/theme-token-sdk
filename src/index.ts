@@ -14,6 +14,8 @@ export {
 	themeStylesSchema,
 	themeStylePropsSchema,
 	cssRulesSchema,
+	bundleAssetSchema,
+	bundleSchema,
 	// Constants
 	THEME_TOKEN_SCHEMA_URL,
 	// Validation
@@ -24,6 +26,8 @@ export {
 	type ThemeStyles,
 	type ThemeStyleProps,
 	type CssRules,
+	type BundleAsset,
+	type ThemeBundle,
 	type ValidationResult,
 	type ParseResult,
 	type ParseMetadata,
