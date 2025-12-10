@@ -37,7 +37,161 @@ export function getContentUrl(origin: string): string {
 }
 
 // ============================================================================
-// Font Loading
+// Google Fonts Loading
+// ============================================================================
+
+/** Cache of loaded Google Fonts */
+const loadedGoogleFonts = new Set<string>();
+
+/**
+ * Common Google Fonts catalog with supported weights
+ * Used for validation and building font URLs
+ */
+export const GOOGLE_FONTS_CATALOG = {
+	sans: [
+		{ name: "Inter", weights: [400, 500, 600, 700] },
+		{ name: "DM Sans", weights: [400, 500, 600, 700] },
+		{ name: "Geist", weights: [400, 500, 600, 700] },
+		{ name: "IBM Plex Sans", weights: [400, 500, 600, 700] },
+		{ name: "Montserrat", weights: [400, 500, 600, 700] },
+		{ name: "Open Sans", weights: [400, 500, 600, 700] },
+		{ name: "Outfit", weights: [400, 500, 600, 700] },
+		{ name: "Plus Jakarta Sans", weights: [400, 500, 600, 700] },
+		{ name: "Poppins", weights: [400, 500, 600, 700] },
+		{ name: "Roboto", weights: [400, 500, 700] },
+		{ name: "Space Grotesk", weights: [400, 500, 600, 700] },
+		{ name: "Nunito", weights: [400, 500, 600, 700] },
+		{ name: "Lato", weights: [400, 700] },
+		{ name: "Raleway", weights: [400, 500, 600, 700] },
+		{ name: "Work Sans", weights: [400, 500, 600, 700] },
+		{ name: "Manrope", weights: [400, 500, 600, 700, 800] },
+		{ name: "Sora", weights: [400, 500, 600, 700] },
+	],
+	serif: [
+		{ name: "Libre Baskerville", weights: [400, 700] },
+		{ name: "Lora", weights: [400, 500, 600, 700] },
+		{ name: "Merriweather", weights: [400, 700] },
+		{ name: "Playfair Display", weights: [400, 500, 600, 700] },
+		{ name: "Source Serif 4", weights: [400, 500, 600, 700] },
+		{ name: "Crimson Pro", weights: [400, 500, 600, 700] },
+		{ name: "EB Garamond", weights: [400, 500, 600, 700] },
+		{ name: "Cormorant", weights: [400, 500, 600, 700] },
+		{ name: "Spectral", weights: [400, 500, 600, 700] },
+		{ name: "Bitter", weights: [400, 500, 600, 700] },
+	],
+	mono: [
+		{ name: "Fira Code", weights: [400, 500, 600, 700] },
+		{ name: "Geist Mono", weights: [400, 500, 600, 700] },
+		{ name: "IBM Plex Mono", weights: [400, 500, 600, 700] },
+		{ name: "JetBrains Mono", weights: [400, 500, 600, 700] },
+		{ name: "Roboto Mono", weights: [400, 500, 700] },
+		{ name: "Source Code Pro", weights: [400, 500, 600, 700] },
+		{ name: "Space Mono", weights: [400, 700] },
+		{ name: "Inconsolata", weights: [400, 500, 600, 700] },
+		{ name: "Ubuntu Mono", weights: [400, 700] },
+	],
+	display: [
+		{ name: "Architects Daughter", weights: [400] },
+		{ name: "Oxanium", weights: [400, 500, 600, 700] },
+		{ name: "Righteous", weights: [400] },
+		{ name: "Bebas Neue", weights: [400] },
+		{ name: "Abril Fatface", weights: [400] },
+		{ name: "Josefin Sans", weights: [400, 500, 600, 700] },
+		{ name: "Fredoka", weights: [400, 500, 600, 700] },
+	],
+} as const;
+
+/** All Google Fonts flattened for lookup */
+const ALL_GOOGLE_FONTS = [
+	...GOOGLE_FONTS_CATALOG.sans,
+	...GOOGLE_FONTS_CATALOG.serif,
+	...GOOGLE_FONTS_CATALOG.mono,
+	...GOOGLE_FONTS_CATALOG.display,
+];
+
+/**
+ * Extract font family name from CSS font-family value
+ * @param fontValue - CSS value like '"Inter", sans-serif'
+ * @returns Font name like "Inter" or null
+ */
+export function extractFontFamily(fontValue: string): string | null {
+	if (!fontValue) return null;
+	const match = fontValue.match(/^["']?([^"',]+)["']?/);
+	if (!match) return null;
+	const fontName = match[1].trim();
+	// Exclude system fonts
+	const systemFonts = [
+		"ui-sans-serif", "ui-serif", "ui-monospace", "system-ui",
+		"-apple-system", "BlinkMacSystemFont", "sans-serif", "serif", "monospace",
+	];
+	if (systemFonts.includes(fontName.toLowerCase())) return null;
+	return fontName;
+}
+
+/**
+ * Check if a font name is a supported Google Font
+ */
+export function isGoogleFont(fontName: string): boolean {
+	return ALL_GOOGLE_FONTS.some(
+		(f) => f.name.toLowerCase() === fontName.toLowerCase(),
+	);
+}
+
+/**
+ * Get font info (weights) for a Google Font
+ */
+export function getGoogleFontInfo(fontName: string): { name: string; weights: readonly number[] } | undefined {
+	return ALL_GOOGLE_FONTS.find(
+		(f) => f.name.toLowerCase() === fontName.toLowerCase(),
+	);
+}
+
+/**
+ * Build Google Fonts API URL for a font
+ */
+export function buildGoogleFontUrl(fontName: string, weights?: readonly number[]): string {
+	const fontInfo = getGoogleFontInfo(fontName);
+	const fontWeights = weights || fontInfo?.weights || [400, 500, 600, 700];
+	const encodedFamily = encodeURIComponent(fontName);
+	const weightsParam = fontWeights.join(";");
+	return `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@${weightsParam}&display=swap`;
+}
+
+/**
+ * Load a Google Font by injecting a stylesheet link
+ *
+ * @param fontName - Google Font name (e.g., "Inter")
+ *
+ * @example
+ * ```ts
+ * loadGoogleFont("Inter")
+ * // Font is now loading via Google Fonts API
+ * ```
+ */
+export function loadGoogleFont(fontName: string): void {
+	if (typeof document === "undefined") return;
+	if (loadedGoogleFonts.has(fontName)) return;
+
+	const fontInfo = getGoogleFontInfo(fontName);
+	if (!fontInfo) return;
+
+	const link = document.createElement("link");
+	link.rel = "stylesheet";
+	link.href = buildGoogleFontUrl(fontName, fontInfo.weights);
+	document.head.appendChild(link);
+
+	loadedGoogleFonts.add(fontName);
+}
+
+/**
+ * Check if a Google Font has been loaded
+ */
+export function isGoogleFontLoaded(fontName: string): boolean {
+	return loadedGoogleFonts.has(fontName);
+}
+
+// ============================================================================
+// On-Chain Font Loading
 // ============================================================================
 
 export interface LoadedFont {
@@ -235,17 +389,19 @@ const SYSTEM_FONTS = {
 };
 
 /**
- * Load all on-chain assets referenced in theme styles
+ * Load all assets referenced in theme styles
  *
- * Scans for font-sans, font-serif, font-mono, bg-image, etc.
- * and loads any on-chain assets, updating CSS custom properties.
+ * Handles:
+ * - Google Fonts: loads via stylesheet injection
+ * - On-chain fonts: fetches from ORDFS and registers FontFace
+ * - On-chain patterns/images: fetches and converts to data URLs
  *
  * @param styles - Theme style properties
  *
  * @example
  * ```ts
  * await loadThemeAssets(theme.styles.light)
- * // On-chain fonts and patterns are now loaded and CSS vars updated
+ * // All fonts and patterns are now loaded
  * ```
  */
 export async function loadThemeAssets(
@@ -259,7 +415,10 @@ export async function loadThemeAssets(
 
 	for (const slot of fontSlots) {
 		const value = styles[`font-${slot}`];
-		if (value && isOnChainPath(value)) {
+		if (!value) continue;
+
+		if (isOnChainPath(value)) {
+			// On-chain font - load from ORDFS
 			const origin = extractOrigin(value);
 			if (origin) {
 				fontLoads.push(
@@ -270,6 +429,12 @@ export async function loadThemeAssets(
 						);
 					}),
 				);
+			}
+		} else {
+			// Could be a Google Font - extract family name and load
+			const fontName = extractFontFamily(value);
+			if (fontName && isGoogleFont(fontName)) {
+				loadGoogleFont(fontName);
 			}
 		}
 	}

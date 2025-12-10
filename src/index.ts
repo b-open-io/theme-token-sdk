@@ -61,13 +61,21 @@ export {
 	toggleThemeMode,
 } from "./apply";
 
-// On-Chain Asset Loading (browser only)
+// Asset Loading (browser only)
 export {
 	// Path utilities
 	isOnChainPath,
 	extractOrigin,
 	getContentUrl,
-	// Font loading
+	// Google Fonts
+	GOOGLE_FONTS_CATALOG,
+	extractFontFamily,
+	isGoogleFont,
+	getGoogleFontInfo,
+	buildGoogleFontUrl,
+	loadGoogleFont,
+	isGoogleFontLoaded,
+	// On-chain font loading
 	loadFontByOrigin,
 	isFontLoaded,
 	getCachedFont,
@@ -76,7 +84,7 @@ export {
 	loadPatternByOrigin,
 	isPatternLoaded,
 	clearPatternCache,
-	// Theme asset loading
+	// Theme asset loading (handles both Google and on-chain)
 	loadThemeAssets,
 	// Types
 	type LoadedFont,
