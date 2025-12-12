@@ -16,6 +16,7 @@ export {
 	cssRulesSchema,
 	bundleAssetSchema,
 	bundleSchema,
+	generationMetaSchema,
 	// Constants
 	THEME_TOKEN_SCHEMA_URL,
 	// Validation
@@ -28,6 +29,7 @@ export {
 	type CssRules,
 	type BundleAsset,
 	type ThemeBundle,
+	type GenerationMeta,
 	type ValidationResult,
 	type ParseResult,
 	type ParseMetadata,
