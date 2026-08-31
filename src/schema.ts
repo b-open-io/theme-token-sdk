@@ -110,6 +110,18 @@ const themeAssetMediaTypePattern =
 	/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
 const themeAssetPathPattern =
 	/^(?!\/)(?!.*(?:^|\/)(?:\.|\.\.)(?:\/|$))(?!.*\/\/)[^%\\?#]+$/;
+const themeAssetPathSchema = z
+	.string()
+	.min(1)
+	.regex(themeAssetPathPattern)
+	.refine(
+		(path) =>
+			Array.from(path).every((character) => {
+				const code = character.charCodeAt(0);
+				return code >= 32 && code !== 127;
+			}),
+		{ message: "Asset path cannot contain control characters" },
+	);
 
 /**
  * Location of an immutable asset used by a theme.
@@ -120,15 +132,15 @@ export const themeAssetSourceSchema = z.discriminatedUnion("kind", [
 	z
 		.object({
 			kind: z.literal("sibling"),
-			vout: z.number().int().min(0),
-			path: z.string().min(1).regex(themeAssetPathPattern).optional(),
+			vout: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+			path: themeAssetPathSchema.optional(),
 		})
 		.strict(),
 	z
 		.object({
 			kind: z.literal("origin"),
 			origin: z.string().regex(themeAssetOriginPattern),
-			path: z.string().min(1).regex(themeAssetPathPattern).optional(),
+			path: themeAssetPathSchema.optional(),
 		})
 		.strict(),
 ]);

@@ -227,6 +227,12 @@ describe("themeAssetSchema", () => {
 				},
 			}).success,
 		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				source: { kind: "sibling", vout: Number.MAX_SAFE_INTEGER + 1 },
+			}).success,
+		).toBe(false);
 	});
 
 	it("rejects render settings that do not match their asset", () => {
