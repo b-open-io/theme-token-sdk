@@ -209,15 +209,19 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 	};
 
 	// Build CSS object with @layer base
+	const sourceBaseCss = theme.css?.["@layer base"] ?? {};
 	const css: ShadcnRegistryItem["css"] = {
 		"@layer base": {
+			...sourceBaseCss,
 			body: {
+				...sourceBaseCss.body,
 				"letter-spacing": "var(--tracking-normal)",
 			},
 		},
 	};
 	if (heading) {
 		css["@layer base"]["h1, h2, h3, h4, h5, h6"] = {
+			...sourceBaseCss["h1, h2, h3, h4, h5, h6"],
 			"@apply font-heading": {},
 		};
 	}

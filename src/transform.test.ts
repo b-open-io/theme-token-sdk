@@ -136,6 +136,34 @@ describe("toShadcnRegistry", () => {
 		).toBeUndefined();
 	});
 
+	it("preserves source CSS alongside generated base rules", () => {
+		const registry = toShadcnRegistry({
+			...conformanceTheme,
+			css: {
+				"@layer base": {
+					body: {
+						"background-image": "url(/content/background_0)",
+						"letter-spacing": "1em",
+					},
+					a: { "text-underline-offset": "0.2em" },
+					"h1, h2, h3, h4, h5, h6": { "text-wrap": "balance" },
+				},
+			},
+		});
+
+		expect(registry.css["@layer base"].body).toEqual({
+			"background-image": "url(/content/background_0)",
+			"letter-spacing": "var(--tracking-normal)",
+		});
+		expect(registry.css["@layer base"].a).toEqual({
+			"text-underline-offset": "0.2em",
+		});
+		expect(registry.css["@layer base"]["h1, h2, h3, h4, h5, h6"]).toEqual({
+			"text-wrap": "balance",
+			"@apply font-heading": {},
+		});
+	});
+
 	it("normalizes theme name to kebab-case", () => {
 		const themeWithSpaces: ThemeToken = {
 			...testTheme,

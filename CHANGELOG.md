@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.19] - 2026-08-31
+
+### Fixed
+
+- Preserve optional Theme Token CSS when generating ShadCN registry CSS
+
 ## [0.0.18] - 2026-08-31
 
 ### Changed
