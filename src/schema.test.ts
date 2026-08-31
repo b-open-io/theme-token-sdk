@@ -216,17 +216,21 @@ describe("parseCss", () => {
 		}
 	});
 
-	it("maps tracking-normal to letter-spacing", () => {
+	it("maps public CSS names to legacy Theme Token authoring names", () => {
 		const css = `
 :root {
 ${cssVars(validTheme.styles.light)}
   --tracking-normal: 0.02em;
+  --shadow-x: 2px;
+  --shadow-y: 3px;
 }
 `;
 		const result = parseCss(css);
 		expect(result.valid).toBe(true);
 		if (result.valid) {
 			expect(result.theme.styles.light["letter-spacing"]).toBe("0.02em");
+			expect(result.theme.styles.light["shadow-offset-x"]).toBe("2px");
+			expect(result.theme.styles.light["shadow-offset-y"]).toBe("3px");
 		}
 	});
 

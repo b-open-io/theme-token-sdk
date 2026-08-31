@@ -7,6 +7,7 @@
 
 import { loadThemeAssets } from "./assets";
 import type { ThemeStyleProps, ThemeToken } from "./schema";
+import { getShadowScale, toCssVariableName } from "./style";
 
 /**
  * Apply theme styles to document root
@@ -35,18 +36,14 @@ export function applyTheme(
 		return;
 	}
 
+	// Set derived values first so explicitly supplied custom scale tokens win.
+	for (const [key, value] of Object.entries(getShadowScale(styles))) {
+		target.style.setProperty(`--${key}`, value);
+	}
+
 	for (const [key, value] of Object.entries(styles)) {
 		if (typeof value !== "string") continue;
-		// Map internal names to CSS variable names
-		const cssKey =
-			key === "letter-spacing"
-				? "tracking-normal"
-				: key === "shadow-offset-x"
-					? "shadow-x"
-					: key === "shadow-offset-y"
-						? "shadow-y"
-						: key;
-		target.style.setProperty(`--${cssKey}`, value);
+		target.style.setProperty(`--${toCssVariableName(key)}`, value);
 	}
 }
 
@@ -178,6 +175,7 @@ export function getCurrentTheme(
 		"font-sans",
 		"font-serif",
 		"font-mono",
+		"font-heading",
 		"letter-spacing",
 		"spacing",
 		"shadow-color",
@@ -191,17 +189,9 @@ export function getCurrentTheme(
 	const keysToRead = keys || defaultKeys;
 
 	for (const key of keysToRead) {
-		// Map internal names to CSS variable names for reading
-		const cssKey =
-			key === "letter-spacing"
-				? "tracking-normal"
-				: key === "shadow-offset-x"
-					? "shadow-x"
-					: key === "shadow-offset-y"
-						? "shadow-y"
-						: key;
-
-		const value = computed.getPropertyValue(`--${cssKey}`).trim();
+		const value = computed
+			.getPropertyValue(`--${toCssVariableName(String(key))}`)
+			.trim();
 		if (value) {
 			result[key] = value;
 		}
@@ -266,6 +256,7 @@ export function clearTheme(keys?: (keyof ThemeStyleProps)[]): void {
 		"font-sans",
 		"font-serif",
 		"font-mono",
+		"font-heading",
 		"letter-spacing",
 		"spacing",
 		"shadow-color",
@@ -274,20 +265,20 @@ export function clearTheme(keys?: (keyof ThemeStyleProps)[]): void {
 		"shadow-spread",
 		"shadow-offset-x",
 		"shadow-offset-y",
+		"shadow-2xs",
+		"shadow-xs",
+		"shadow-sm",
+		"shadow",
+		"shadow-md",
+		"shadow-lg",
+		"shadow-xl",
+		"shadow-2xl",
 	];
 
 	const keysToRemove = keys || defaultKeys;
 
 	for (const key of keysToRemove) {
-		const cssKey =
-			key === "letter-spacing"
-				? "tracking-normal"
-				: key === "shadow-offset-x"
-					? "shadow-x"
-					: key === "shadow-offset-y"
-						? "shadow-y"
-						: key;
-		root.style.removeProperty(`--${cssKey}`);
+		root.style.removeProperty(`--${toCssVariableName(String(key))}`);
 	}
 }
 

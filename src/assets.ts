@@ -398,6 +398,8 @@ const SYSTEM_FONTS = {
 	sans: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
 	serif: "ui-serif, Georgia, Cambria, Times New Roman, serif",
 	mono: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace",
+	heading:
+		"ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
 };
 
 /**
@@ -423,7 +425,7 @@ export async function loadThemeAssets(
 	const patternLoads: Promise<void>[] = [];
 
 	// Font slots to check
-	const fontSlots = ["sans", "serif", "mono"] as const;
+	const fontSlots = ["sans", "serif", "mono", "heading"] as const;
 
 	for (const slot of fontSlots) {
 		const value = styles[`font-${slot}`];

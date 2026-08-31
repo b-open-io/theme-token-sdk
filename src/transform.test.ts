@@ -1,6 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import { applyTheme } from "./apply";
 import { THEME_TOKEN_SCHEMA_URL, type ThemeToken } from "./schema";
-import { createThemeToken, toCss, toJson, toShadcnRegistry } from "./transform";
+import {
+	createThemeToken,
+	toCss,
+	toJson,
+	toShadcnRegistry,
+	toTailwindConfig,
+} from "./transform";
 
 const testTheme: ThemeToken = {
 	$schema: THEME_TOKEN_SCHEMA_URL,
@@ -53,6 +60,39 @@ const testTheme: ThemeToken = {
 	},
 };
 
+// Pinned to TweakCN d21c8e3 (shadow/export shape) and shadcn/ui b4a618b
+// (current multiplicative radius scale).
+const conformanceTheme: ThemeToken = {
+	...testTheme,
+	styles: {
+		light: {
+			...testTheme.styles.light,
+			"font-heading": "/content/abcdef1234567890_0",
+			"letter-spacing": "0.02em",
+			spacing: "0.3rem",
+			"shadow-color": "hsl(240 10% 20%)",
+			"shadow-opacity": "0.12",
+			"shadow-blur": "4px",
+			"shadow-spread": "1px",
+			"shadow-offset-x": "2px",
+			"shadow-offset-y": "3px",
+			"theme-token-custom": "preserved",
+		},
+		dark: {
+			...testTheme.styles.dark,
+			"font-heading": "/content/abcdef1234567890_0",
+			"letter-spacing": "0.02em",
+			spacing: "0.3rem",
+			"shadow-color": "hsl(0 0% 0%)",
+			"shadow-opacity": "0.2",
+			"shadow-blur": "6px",
+			"shadow-spread": "0px",
+			"shadow-offset-x": "0px",
+			"shadow-offset-y": "4px",
+		},
+	},
+};
+
 describe("toShadcnRegistry", () => {
 	it("converts theme to registry format", () => {
 		const registry = toShadcnRegistry(testTheme);
@@ -100,6 +140,59 @@ describe("toShadcnRegistry", () => {
 
 		expect(registry.name).toBe("my-awesome-theme");
 	});
+
+	it("matches the pinned TweakCN shadow export scale", () => {
+		const registry = toShadcnRegistry(conformanceTheme);
+
+		expect(registry.cssVars.light["shadow-x"]).toBe("2px");
+		expect(registry.cssVars.light["shadow-y"]).toBe("3px");
+		expect(registry.cssVars.light["shadow-offset-x"]).toBeUndefined();
+		expect(registry.cssVars.light["shadow-2xs"]).toBe(
+			"2px 3px 4px 1px hsl(240 10% 20% / 0.06)",
+		);
+		expect(registry.cssVars.light["shadow-md"]).toBe(
+			"2px 3px 4px 1px hsl(240 10% 20% / 0.12), 2px 2px 4px 0px hsl(240 10% 20% / 0.12)",
+		);
+		expect(registry.cssVars.light["shadow-2xl"]).toBe(
+			"2px 3px 4px 1px hsl(240 10% 20% / 0.30)",
+		);
+		expect(registry.cssVars.dark["shadow-2xs"]).toBe(
+			"0px 4px 6px 0px hsl(0 0% 0% / 0.10)",
+		);
+		expect(registry.cssVars.light["theme-token-custom"]).toBe("preserved");
+	});
+
+	it("uses current ShadCN shared radius, spacing, and tracking tokens", () => {
+		const registry = toShadcnRegistry(conformanceTheme);
+
+		expect(registry.cssVars.theme).toMatchObject({
+			radius: "0.625rem",
+			"radius-sm": "calc(var(--radius) * 0.6)",
+			"radius-md": "calc(var(--radius) * 0.8)",
+			"radius-lg": "var(--radius)",
+			"radius-xl": "calc(var(--radius) * 1.4)",
+			"radius-2xl": "calc(var(--radius) * 1.8)",
+			"radius-3xl": "calc(var(--radius) * 2.2)",
+			"radius-4xl": "calc(var(--radius) * 2.6)",
+			"tracking-normal": "0.02em",
+			spacing: "0.3rem",
+		});
+		expect(registry.cssVars.light.radius).toBeUndefined();
+		expect(registry.cssVars.light.spacing).toBeUndefined();
+		expect(registry.cssVars.light["tracking-normal"]).toBeUndefined();
+	});
+
+	it("supports on-chain heading fonts", () => {
+		const registry = toShadcnRegistry(conformanceTheme);
+
+		expect(registry.cssVars.theme["font-heading"]).toBe(
+			'"tt-abcdef12", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+		);
+		expect(registry.css["@font-face-heading"]).toMatchObject({
+			"font-family": '"tt-abcdef12"',
+			src: 'url("https://api.1sat.app/content/abcdef1234567890_0") format("woff2")',
+		});
+	});
 });
 
 describe("toCss", () => {
@@ -131,6 +224,44 @@ describe("toCss", () => {
 		const css = toCss(themeWithLetterSpacing);
 
 		expect(css).toContain("--tracking-normal: 0.02em");
+	});
+
+	it("emits public shadow names and the computed scale", () => {
+		const css = toCss(conformanceTheme);
+
+		expect(css).toContain("--shadow-x: 2px");
+		expect(css).not.toContain("--shadow-offset-x");
+		expect(css).toContain(
+			"--shadow-xl: 2px 3px 4px 1px hsl(240 10% 20% / 0.12), 2px 8px 10px 0px hsl(240 10% 20% / 0.12)",
+		);
+	});
+});
+
+describe("runtime and Tailwind conformance", () => {
+	it("applies computed shadows for live previews", () => {
+		const values = new Map<string, string>();
+		const element = {
+			style: {
+				setProperty: (key: string, value: string) => values.set(key, value),
+			},
+		} as unknown as HTMLElement;
+
+		applyTheme(conformanceTheme.styles.light, element);
+
+		expect(values.get("--shadow-x")).toBe("2px");
+		expect(values.get("--shadow-md")).toBe(
+			"2px 3px 4px 1px hsl(240 10% 20% / 0.12), 2px 2px 4px 0px hsl(240 10% 20% / 0.12)",
+		);
+	});
+
+	it("uses the current multiplicative ShadCN radius scale", () => {
+		const css = toTailwindConfig(conformanceTheme);
+
+		expect(css).toContain("--radius-sm: calc(var(--radius) * 0.6)");
+		expect(css).toContain("--radius-4xl: calc(var(--radius) * 2.6)");
+		expect(css).toContain("--shadow-x: 0");
+		expect(css).not.toContain("--shadow-offset-x");
+		expect(css).not.toContain("calc(var(--radius) - 4px)");
 	});
 });
 

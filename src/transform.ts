@@ -10,6 +10,7 @@ import {
 	type ThemeStyleProps,
 	type ThemeToken,
 } from "./schema";
+import { getShadowScale, toCssVariableName } from "./style";
 
 /**
  * ShadCN Registry item format
@@ -19,7 +20,12 @@ export interface ShadcnRegistryItem {
 	$schema: string;
 	name: string;
 	type: "registry:style";
-	css: Record<string, unknown>;
+	css: {
+		"@layer base": Record<string, Record<string, string>>;
+		[key: string]:
+			| Record<string, string>
+			| Record<string, Record<string, string>>;
+	};
 	cssVars: {
 		theme: Record<string, string>;
 		light: Record<string, string>;
@@ -32,6 +38,18 @@ const SYSTEM_FONT_STACKS = {
 	sans: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
 	serif: "ui-serif, Georgia, Cambria, Times New Roman, serif",
 	mono: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace",
+	heading:
+		"ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+} as const;
+
+const RADIUS_THEME_VARS = {
+	"radius-sm": "calc(var(--radius) * 0.6)",
+	"radius-md": "calc(var(--radius) * 0.8)",
+	"radius-lg": "var(--radius)",
+	"radius-xl": "calc(var(--radius) * 1.4)",
+	"radius-2xl": "calc(var(--radius) * 1.8)",
+	"radius-3xl": "calc(var(--radius) * 2.2)",
+	"radius-4xl": "calc(var(--radius) * 2.6)",
 } as const;
 
 /**
@@ -49,16 +67,16 @@ function extractOnChainFonts(
 	light: ThemeStyleProps,
 	dark: ThemeStyleProps,
 ): Array<{
-	slot: "sans" | "serif" | "mono";
+	slot: "sans" | "serif" | "mono" | "heading";
 	origin: string;
 	familyName: string;
 }> {
 	const fonts: Array<{
-		slot: "sans" | "serif" | "mono";
+		slot: "sans" | "serif" | "mono" | "heading";
 		origin: string;
 		familyName: string;
 	}> = [];
-	const slots = ["sans", "serif", "mono"] as const;
+	const slots = ["sans", "serif", "mono", "heading"] as const;
 
 	for (const slot of slots) {
 		const value = (light[`font-${slot}`] || dark[`font-${slot}`]) as
@@ -104,18 +122,15 @@ function toShadcnName(name: string): string {
  * Transform internal theme props to registry cssVars format
  * Maps: letter-spacing → tracking-normal
  */
-function toRegistryVars(props: ThemeStyleProps): Record<string, string> {
+function toRegistryVars(
+	props: ThemeStyleProps,
+	sharedKeys: ReadonlySet<string> = new Set(),
+): Record<string, string> {
 	const vars: Record<string, string> = {};
 
 	for (const [key, value] of Object.entries(props)) {
-		if (value === undefined) continue;
-
-		// Map internal letter-spacing to CSS tracking-normal
-		if (key === "letter-spacing") {
-			vars["tracking-normal"] = value;
-		} else {
-			vars[key] = value;
-		}
+		if (value === undefined || sharedKeys.has(key)) continue;
+		vars[toCssVariableName(key)] = value;
 	}
 
 	return vars;
@@ -148,6 +163,8 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 		"font-mono": getThemeValue(light, dark, "font-mono") || "monospace",
 		"font-serif": getThemeValue(light, dark, "font-serif") || "serif",
 	};
+	const heading = getThemeValue(light, dark, "font-heading");
+	if (heading) fontValues["font-heading"] = heading;
 
 	// Replace on-chain paths with generated font-family names + fallbacks
 	for (const font of onChainFonts) {
@@ -155,8 +172,39 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 			`"${font.familyName}", ${SYSTEM_FONT_STACKS[font.slot]}`;
 	}
 
+	// TweakCN treats these as shared. Only hoist values that do not actually
+	// vary by mode so unusual legacy themes keep their mode-specific behavior.
+	const sharedKeys = new Set<string>();
+	for (const key of [
+		"font-sans",
+		"font-serif",
+		"font-mono",
+		"font-heading",
+		"radius",
+		"spacing",
+		"letter-spacing",
+	]) {
+		const lightValue = light[key];
+		const darkValue = dark[key];
+		if (!lightValue || !darkValue || lightValue === darkValue)
+			sharedKeys.add(key);
+	}
+
+	const themeVars: Record<string, string> = {
+		...fontValues,
+		radius: getThemeValue(light, dark, "radius") || "0.5rem",
+		...RADIUS_THEME_VARS,
+		"tracking-normal": getThemeValue(light, dark, "letter-spacing") || "0em",
+		"tracking-tighter": "calc(var(--tracking-normal) - 0.05em)",
+		"tracking-tight": "calc(var(--tracking-normal) - 0.025em)",
+		"tracking-wide": "calc(var(--tracking-normal) + 0.025em)",
+		"tracking-wider": "calc(var(--tracking-normal) + 0.05em)",
+		"tracking-widest": "calc(var(--tracking-normal) + 0.1em)",
+		spacing: getThemeValue(light, dark, "spacing") || "0.25rem",
+	};
+
 	// Build CSS object with @layer base
-	const css: Record<string, unknown> = {
+	const css: ShadcnRegistryItem["css"] = {
 		"@layer base": {
 			body: {
 				"letter-spacing": "var(--tracking-normal)",
@@ -182,25 +230,17 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 		type: "registry:style",
 		css,
 		cssVars: {
-			// Shared theme vars (fonts, radius, tracking calculations)
-			theme: {
-				...fontValues,
-				radius: getThemeValue(light, dark, "radius") || "0.5rem",
-				"tracking-tighter": "calc(var(--tracking-normal) - 0.05em)",
-				"tracking-tight": "calc(var(--tracking-normal) - 0.025em)",
-				"tracking-wide": "calc(var(--tracking-normal) + 0.025em)",
-				"tracking-wider": "calc(var(--tracking-normal) + 0.05em)",
-				"tracking-widest": "calc(var(--tracking-normal) + 0.1em)",
-			},
+			theme: themeVars,
 			// Light mode vars
 			light: {
-				...toRegistryVars(light),
-				"tracking-normal":
-					getThemeValue(light, dark, "letter-spacing") || "0em",
-				spacing: getThemeValue(light, dark, "spacing") || "0.25rem",
+				...getShadowScale(light),
+				...toRegistryVars(light, sharedKeys),
 			},
 			// Dark mode vars
-			dark: toRegistryVars(dark),
+			dark: {
+				...getShadowScale(dark),
+				...toRegistryVars(dark, sharedKeys),
+			},
 		},
 	};
 }
@@ -226,18 +266,12 @@ export function toCss(theme: ThemeToken): string {
 
 	// Light mode (:root)
 	lines.push(":root {");
-	for (const [key, value] of Object.entries(theme.styles.light)) {
+	for (const [key, value] of Object.entries({
+		...getShadowScale(theme.styles.light),
+		...toRegistryVars(theme.styles.light),
+	})) {
 		if (value !== undefined) {
-			// Map internal names back to CSS var names
-			const cssKey =
-				key === "letter-spacing"
-					? "tracking-normal"
-					: key === "shadow-offset-x"
-						? "shadow-x"
-						: key === "shadow-offset-y"
-							? "shadow-y"
-							: key;
-			lines.push(`  --${cssKey}: ${value};`);
+			lines.push(`  --${key}: ${value};`);
 		}
 	}
 	lines.push("}");
@@ -245,17 +279,12 @@ export function toCss(theme: ThemeToken): string {
 
 	// Dark mode (.dark)
 	lines.push(".dark {");
-	for (const [key, value] of Object.entries(theme.styles.dark)) {
+	for (const [key, value] of Object.entries({
+		...getShadowScale(theme.styles.dark),
+		...toRegistryVars(theme.styles.dark),
+	})) {
 		if (value !== undefined) {
-			const cssKey =
-				key === "letter-spacing"
-					? "tracking-normal"
-					: key === "shadow-offset-x"
-						? "shadow-x"
-						: key === "shadow-offset-y"
-							? "shadow-y"
-							: key;
-			lines.push(`  --${cssKey}: ${value};`);
+			lines.push(`  --${key}: ${value};`);
 		}
 	}
 	lines.push("}");
@@ -394,10 +423,9 @@ export function toTailwindConfig(theme: ThemeToken): string {
 	// Add radius
 	lines.push("");
 	lines.push("  /* Border Radius */");
-	lines.push("  --radius-sm: calc(var(--radius) - 4px);");
-	lines.push("  --radius-md: calc(var(--radius) - 2px);");
-	lines.push("  --radius-lg: var(--radius);");
-	lines.push("  --radius-xl: calc(var(--radius) + 4px);");
+	for (const [key, value] of Object.entries(RADIUS_THEME_VARS)) {
+		lines.push(`  --${key}: ${value};`);
+	}
 
 	lines.push("}");
 	lines.push("");
@@ -405,7 +433,10 @@ export function toTailwindConfig(theme: ThemeToken): string {
 	// Add the CSS variables
 	lines.push("/* Light mode (default) */");
 	lines.push(":root {");
-	for (const [key, value] of Object.entries(light)) {
+	for (const [key, value] of Object.entries({
+		...getShadowScale(light),
+		...toRegistryVars(light),
+	})) {
 		if (value !== undefined) {
 			lines.push(`  --${key}: ${value};`);
 		}
@@ -415,7 +446,10 @@ export function toTailwindConfig(theme: ThemeToken): string {
 
 	lines.push("/* Dark mode */");
 	lines.push(".dark {");
-	for (const [key, value] of Object.entries(dark)) {
+	for (const [key, value] of Object.entries({
+		...getShadowScale(dark),
+		...toRegistryVars(dark),
+	})) {
 		if (value !== undefined) {
 			lines.push(`  --${key}: ${value};`);
 		}

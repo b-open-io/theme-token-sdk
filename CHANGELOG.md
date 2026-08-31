@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.14] - 2026-08-30
+
+### Added
+
+- Current TweakCN-compatible computed shadow scale for registry, CSS, Tailwind, and runtime output
+- Heading-font support, including relative on-chain font loading and generated `@font-face` rules
+- Pinned ShadCN and TweakCN style-conformance coverage
+
+### Changed
+
+- Emit public `shadow-x` and `shadow-y` variables while retaining legacy authoring aliases
+- Use the current multiplicative ShadCN radius scale through `radius-4xl`
+- Hoist shared font, radius, spacing, and tracking values into registry theme variables without dropping custom tokens
+
+### Fixed
+
+- Apply computed shadow utilities during live theme previews so shadow controls affect components
+- Preserve light/dark-specific shared-style values when the two modes differ
+
 ## [0.0.13] - 2026-08-30
 
 ### Added
