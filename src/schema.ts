@@ -239,7 +239,7 @@ export const themeTokenSchema = z.object({
 	name: z.string().min(1),
 	author: z.string().optional(),
 	/** Immutable assets composed into this theme */
-	assets: z.array(themeAssetSchema).optional(),
+	assets: z.array(themeAssetSchema).max(16).optional(),
 	/** Bundle metadata for themes with associated assets */
 	bundle: bundleSchema.optional(),
 	styles: themeStylesSchema,

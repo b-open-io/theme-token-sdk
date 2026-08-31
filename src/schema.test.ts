@@ -171,6 +171,29 @@ describe("validateThemeToken", () => {
 		}
 	});
 
+	it("limits a theme to 16 asset relationships", () => {
+		const asset: ThemeAsset = {
+			role: "background.page",
+			kind: "pattern",
+			source: { kind: "sibling", vout: 0 },
+			mediaType: "image/svg+xml",
+			integrity: `sha256:${"e".repeat(64)}`,
+		};
+
+		expect(
+			validateThemeToken({
+				...validTheme,
+				assets: Array.from({ length: 16 }, () => asset),
+			}).valid,
+		).toBe(true);
+		expect(
+			validateThemeToken({
+				...validTheme,
+				assets: Array.from({ length: 17 }, () => asset),
+			}).valid,
+		).toBe(false);
+	});
+
 	it("keeps existing bundle documents valid without assets", () => {
 		const result = validateThemeToken({
 			...validTheme,

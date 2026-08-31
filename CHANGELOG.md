@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.17] - 2026-08-30
+
+### Changed
+
+- Limit each Theme Token to 16 optional asset relationships
+
 ## [0.0.16] - 2026-08-30
 
 ### Added
