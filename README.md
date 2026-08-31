@@ -127,6 +127,7 @@ const css = toCss(theme);
 | `parseCss(css, name?)` | Parse CSS string to ThemeToken, resolving `var()` references |
 | `validateThemeToken(data)` | Validate unknown JSON against schema |
 | `themeTokenSchema` | Zod schema for direct validation |
+| `themeAssetSchema` | Zod schema for optional immutable asset relationships |
 
 ### Transformation
 
@@ -168,12 +169,36 @@ interface ThemeToken {
   $schema: string;
   name: string;
   author?: string;
+  assets?: ThemeAsset[];
   styles: {
     light: ThemeStyleProps;
     dark: ThemeStyleProps;
   };
 }
 ```
+
+Assets are optional relationships to immutable on-chain content. A source can
+reference another output in the theme's transaction or an independently
+published origin:
+
+```typescript
+const themeWithPattern: ThemeToken = {
+  ...theme,
+  assets: [{
+    role: "background.page",
+    kind: "pattern",
+    source: { kind: "sibling", vout: 0 },
+    mediaType: "image/svg+xml",
+    integrity: `sha256:${patternSha256}`,
+    delivery: "linked",
+    render: { mode: "mask", repeat: "repeat" }
+  }]
+};
+```
+
+`integrity` binds the relationship to exact bytes. `required: false` lets an
+installer omit an asset that has not reached its content index yet. Existing
+Theme Token documents, including documents with `bundle`, remain valid.
 
 Colors use OKLCH: `oklch(L C H)` where L is lightness (0–1), C is chroma (0–0.4), H is hue (0–360).
 

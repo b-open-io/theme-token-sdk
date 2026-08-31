@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
 	THEME_TOKEN_SCHEMA_URL,
+	type ThemeAsset,
 	parseCss,
+	themeAssetSchema,
 	themeTokenSchema,
 	validateThemeToken,
 } from "./schema";
@@ -130,6 +132,138 @@ describe("validateThemeToken", () => {
 		};
 		const result = validateThemeToken(withCharts);
 		expect(result.valid).toBe(true);
+	});
+
+	it("accepts optional immutable asset relationships", () => {
+		const assets: ThemeAsset[] = [
+			{
+				role: "background.page",
+				kind: "pattern",
+				source: { kind: "sibling", vout: 0, path: "pattern.svg" },
+				mediaType: "image/svg+xml",
+				integrity: `sha256:${"b".repeat(64)}`,
+				delivery: "linked",
+				render: {
+					mode: "mask",
+					repeat: "repeat",
+					color: "var(--primary)",
+				},
+			},
+			{
+				role: "font.sans",
+				kind: "font",
+				source: {
+					kind: "origin",
+					origin: `${"a".repeat(64)}_2`,
+					path: "fonts/theme.woff2",
+				},
+				mediaType: "font/woff2",
+				integrity: `sha256:${"c".repeat(64)}`,
+				required: false,
+			},
+		];
+
+		const result = validateThemeToken({ ...validTheme, assets });
+
+		expect(result.valid).toBe(true);
+		if (result.valid) {
+			expect(result.theme.assets).toEqual(assets);
+		}
+	});
+
+	it("keeps existing bundle documents valid without assets", () => {
+		const result = validateThemeToken({
+			...validTheme,
+			bundle: {
+				version: 1,
+				assets: [{ vout: 0, type: "font", slot: "sans" }],
+			},
+		});
+
+		expect(result.valid).toBe(true);
+		if (result.valid) {
+			expect(result.theme.assets).toBeUndefined();
+			expect(result.theme.bundle?.version).toBe(1);
+		}
+	});
+});
+
+describe("themeAssetSchema", () => {
+	const asset = {
+		role: "background.page",
+		kind: "pattern",
+		source: { kind: "sibling", vout: 0 },
+		mediaType: "image/svg+xml",
+		integrity: `sha256:${"d".repeat(64)}`,
+		render: { mode: "image" },
+	};
+
+	it("rejects malformed immutable references", () => {
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				source: { kind: "origin", origin: "not-an-outpoint" },
+			}).success,
+		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				integrity: `sha256:${"A".repeat(64)}`,
+			}).success,
+		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				source: { kind: "sibling", vout: 0, path: "../pattern.svg" },
+			}).success,
+		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				source: {
+					kind: "sibling",
+					vout: 0,
+					path: "%2e%2e/pattern.svg",
+				},
+			}).success,
+		).toBe(false);
+	});
+
+	it("rejects render settings that do not match their asset", () => {
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				kind: "font",
+				mediaType: "font/woff2",
+			}).success,
+		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				render: { mode: "image", color: "#fff" },
+			}).success,
+		).toBe(false);
+	});
+
+	it("limits new asset relationships to supported kinds", () => {
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				kind: "icon",
+			}).success,
+		).toBe(false);
+	});
+
+	it("rejects undeclared asset and source fields", () => {
+		expect(
+			themeAssetSchema.safeParse({ ...asset, unexpected: true }).success,
+		).toBe(false);
+		expect(
+			themeAssetSchema.safeParse({
+				...asset,
+				source: { kind: "sibling", vout: 0, origin: `${"a".repeat(64)}_0` },
+			}).success,
+		).toBe(false);
 	});
 });
 

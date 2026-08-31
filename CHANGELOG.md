@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.16] - 2026-08-30
+
+### Added
+
+- Optional immutable on-chain asset relationships on the existing Theme Token schema
+- Versionless public schemas and TypeScript types for asset sources, rendering hints, and asset declarations
+
+### Changed
+
+- Preserve legacy bundle documents while allowing new themes to compose fonts, patterns, and wallpapers
+
 ## [0.0.15] - 2026-08-30
 
 ### Changed
