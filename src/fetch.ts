@@ -6,35 +6,8 @@
 
 import { type ThemeToken, validateThemeToken } from "./schema";
 
-const ORDINALS_API = "https://ordinals.gorillapool.io/api";
-const ORDFS_BASE = "https://ordfs.network";
-
-interface OrdinalResult {
-	txid: string;
-	vout: number;
-	outpoint: string;
-	satoshis: number;
-	origin?: {
-		outpoint: string;
-		data?: {
-			insc?: {
-				file?: {
-					type?: string;
-					json?: unknown;
-				};
-			};
-			map?: Record<string, string>;
-		};
-	};
-	data?: {
-		map?: Record<string, string>;
-		insc?: {
-			file?: {
-				type?: string;
-			};
-		};
-	};
-}
+const ORDFS_BASE = "https://api.1sat.app/content";
+const THEME_INDEX_API = "https://themetoken.dev/api/themes/cache";
 
 /**
  * A published theme from the blockchain
@@ -61,7 +34,7 @@ export interface PublishedTheme {
  * ```
  */
 export function getRegistryUrl(origin: string): string {
-	return `https://themetoken.dev/r/themes/${origin}`;
+	return `https://themetoken.dev/r/themes/${normalizeOrigin(origin)}`;
 }
 
 /**
@@ -71,7 +44,26 @@ export function getRegistryUrl(origin: string): string {
  * @returns Full URL to the ORDFS content
  */
 export function getOrdfsUrl(origin: string): string {
-	return `${ORDFS_BASE}/${origin}`;
+	return `${ORDFS_BASE}/${normalizeOrigin(origin)}`;
+}
+
+function normalizeOrigin(value: string): string {
+	let origin = value.trim();
+	try {
+		const url = new URL(origin);
+		origin = url.pathname;
+	} catch {
+		// Not a URL; treat it as an origin or /content path.
+	}
+	origin = origin
+		.replace(/^\/?content\//, "")
+		.replace(/^\/+/, "")
+		.replace(/^r\/themes\//, "");
+	const [outpoint, ...path] = origin.split("/");
+	const normalizedOutpoint = outpoint
+		.replace(/\.(json|png)$/i, "")
+		.replace(/\.([0-9]+)$/, "_$1");
+	return [normalizedOutpoint, ...path].join("/");
 }
 
 /**
@@ -91,30 +83,24 @@ export function getOrdfsUrl(origin: string): string {
 export async function fetchThemeByOrigin(
 	origin: string,
 ): Promise<PublishedTheme | null> {
-	try {
-		const response = await fetch(getOrdfsUrl(origin));
-
-		if (!response.ok) {
-			return null;
-		}
-
-		const json = await response.json();
-
-		if (json) {
-			const validation = validateThemeToken(json);
+	const normalizedOrigin = normalizeOrigin(origin);
+	for (const path of [`${normalizedOrigin}/theme.json`, normalizedOrigin]) {
+		try {
+			const response = await fetch(getOrdfsUrl(path));
+			if (!response.ok) continue;
+			const validation = validateThemeToken(await response.json());
 			if (validation.valid) {
 				return {
 					theme: validation.theme,
-					outpoint: origin,
-					origin,
+					outpoint: normalizedOrigin,
+					origin: normalizedOrigin,
 				};
 			}
+		} catch {
+			// Try the legacy direct inscription path next.
 		}
-
-		return null;
-	} catch {
-		return null;
 	}
+	return null;
 }
 
 /**
@@ -136,53 +122,35 @@ export async function fetchThemeByOrigin(
 export async function fetchPublishedThemes(): Promise<PublishedTheme[]> {
 	const themes: PublishedTheme[] = [];
 	const seenOrigins = new Set<string>();
+	let cursor: number | null = 0;
 
 	try {
-		// Use search endpoint with base64-encoded query for map.app=ThemeToken
-		const query = JSON.stringify({ map: { app: "ThemeToken" } });
-		const encodedQuery =
-			typeof window !== "undefined"
-				? btoa(query)
-				: Buffer.from(query).toString("base64");
+		while (cursor !== null) {
+			const response = await fetch(
+				`${THEME_INDEX_API}?cursor=${cursor}&limit=50`,
+			);
+			if (!response.ok) break;
 
-		const response = await fetch(
-			`${ORDINALS_API}/inscriptions/search?q=${encodedQuery}&limit=100`,
-		);
-
-		if (response.ok) {
-			const results: OrdinalResult[] = await response.json();
-
-			for (const result of results) {
-				try {
-					// Skip non-ordinals (must be 1 sat)
-					if (result.satoshis !== 1) continue;
-
-					// Get origin outpoint
-					const originOutpoint = result.origin?.outpoint;
-					if (!originOutpoint || seenOrigins.has(originOutpoint)) continue;
-
-					// Check content type
-					const fileType =
-						result.origin?.data?.insc?.file?.type ||
-						result.data?.insc?.file?.type;
-					if (fileType !== "application/json") continue;
-
-					// Fetch actual theme content from ordfs
-					const theme = await fetchThemeByOrigin(originOutpoint);
-					if (theme) {
-						themes.push({
-							...theme,
-							outpoint: result.outpoint, // Current location
-						});
-						seenOrigins.add(originOutpoint);
-					}
-				} catch {
-					// Skip invalid themes
-				}
+			const page = (await response.json()) as {
+				themes?: Array<{ origin?: string; theme?: unknown }>;
+				nextCursor?: number | null;
+			};
+			for (const item of page.themes ?? []) {
+				if (!item.origin || seenOrigins.has(item.origin)) continue;
+				const validation = validateThemeToken(item.theme);
+				if (!validation.valid) continue;
+				themes.push({
+					theme: validation.theme,
+					outpoint: item.origin,
+					origin: item.origin,
+				});
+				seenOrigins.add(item.origin);
 			}
+			const nextCursor = page.nextCursor ?? null;
+			cursor = nextCursor === cursor ? null : nextCursor;
 		}
-	} catch (err) {
-		console.error("[fetchPublishedThemes] Fetch error:", err);
+	} catch (error) {
+		console.error("[fetchPublishedThemes] Fetch error:", error);
 	}
 
 	return themes;

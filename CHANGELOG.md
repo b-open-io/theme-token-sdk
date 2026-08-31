@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.13] - 2026-08-30
+
+### Added
+
+- Theme bundle metadata and generated `@font-face` rules for on-chain fonts
+- Optional AI generation provenance metadata
+- Tests for packaged theme fetching and strict CSS parsing
+
+### Changed
+
+- Fetch raw content from the current `api.1sat.app` gateway
+- Load `theme.json` from ord-fs packages with a legacy direct-inscription fallback
+- Discover published themes through the Theme Token index using current `theme-token` and `registry:style` conventions
+- Update compatible build and type dependencies
+
+### Fixed
+
+- Reject incomplete CSS instead of returning an invalid Theme Token as successful
+- Preserve the `use client` directive in published React entry bundles
+- Recognize current lowercase MAP metadata while retaining legacy ThemeToken support
+
 ## [0.0.10] - 2024-12-09
 
 ### Changed

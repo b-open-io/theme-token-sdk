@@ -4,12 +4,12 @@
  * Convert between ThemeToken and other formats like ShadCN Registry and CSS.
  */
 
+import { extractOrigin, getContentUrl, isOnChainPath } from "./assets";
 import {
 	THEME_TOKEN_SCHEMA_URL,
 	type ThemeStyleProps,
 	type ThemeToken,
 } from "./schema";
-import { isOnChainPath, extractOrigin, getContentUrl } from "./assets";
 
 /**
  * ShadCN Registry item format
@@ -48,12 +48,22 @@ function generateFontFamilyName(origin: string): string {
 function extractOnChainFonts(
 	light: ThemeStyleProps,
 	dark: ThemeStyleProps,
-): Array<{ slot: "sans" | "serif" | "mono"; origin: string; familyName: string }> {
-	const fonts: Array<{ slot: "sans" | "serif" | "mono"; origin: string; familyName: string }> = [];
+): Array<{
+	slot: "sans" | "serif" | "mono";
+	origin: string;
+	familyName: string;
+}> {
+	const fonts: Array<{
+		slot: "sans" | "serif" | "mono";
+		origin: string;
+		familyName: string;
+	}> = [];
 	const slots = ["sans", "serif", "mono"] as const;
 
 	for (const slot of slots) {
-		const value = (light[`font-${slot}`] || dark[`font-${slot}`]) as string | undefined;
+		const value = (light[`font-${slot}`] || dark[`font-${slot}`]) as
+			| string
+			| undefined;
 		if (value && isOnChainPath(value)) {
 			const origin = extractOrigin(value);
 			if (origin) {
@@ -141,7 +151,8 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 
 	// Replace on-chain paths with generated font-family names + fallbacks
 	for (const font of onChainFonts) {
-		fontValues[`font-${font.slot}`] = `"${font.familyName}", ${SYSTEM_FONT_STACKS[font.slot]}`;
+		fontValues[`font-${font.slot}`] =
+			`"${font.familyName}", ${SYSTEM_FONT_STACKS[font.slot]}`;
 	}
 
 	// Build CSS object with @layer base

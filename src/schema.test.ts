@@ -57,6 +57,12 @@ const validTheme = {
 	},
 };
 
+function cssVars(styles: Record<string, string>): string {
+	return Object.entries(styles)
+		.map(([key, value]) => `  --${key}: ${value};`)
+		.join("\n");
+}
+
 describe("validateThemeToken", () => {
 	it("validates a correct theme", () => {
 		const result = validateThemeToken(validTheme);
@@ -70,6 +76,16 @@ describe("validateThemeToken", () => {
 		const invalid = { ...validTheme, name: undefined };
 		const result = validateThemeToken(invalid);
 		expect(result.valid).toBe(false);
+	});
+
+	it("rejects an empty name or a different schema URL", () => {
+		expect(validateThemeToken({ ...validTheme, name: "" }).valid).toBe(false);
+		expect(
+			validateThemeToken({
+				...validTheme,
+				$schema: "https://example.com/theme",
+			}).valid,
+		).toBe(false);
 	});
 
 	it("rejects theme without styles", () => {
@@ -203,10 +219,7 @@ describe("parseCss", () => {
 	it("maps tracking-normal to letter-spacing", () => {
 		const css = `
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  --primary: oklch(0.5 0.1 240);
-  --radius: 0.5rem;
+${cssVars(validTheme.styles.light)}
   --tracking-normal: 0.02em;
 }
 `;
@@ -220,10 +233,7 @@ describe("parseCss", () => {
 	it("falls back to light mode if no .dark block", () => {
 		const css = `
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0 0 0);
-  --primary: oklch(0.5 0.1 240);
-  --radius: 0.5rem;
+${cssVars(validTheme.styles.light)}
 }
 `;
 		const result = parseCss(css);
@@ -231,6 +241,18 @@ describe("parseCss", () => {
 		if (result.valid) {
 			expect(result.theme.styles.dark.background).toBe("oklch(1 0 0)");
 		}
+	});
+
+	it("rejects CSS that only includes the old partial minimum", () => {
+		const css = `:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --primary: oklch(0.5 0.1 240);
+  --radius: 0.5rem;
+}`;
+		const result = parseCss(css);
+		expect(result.valid).toBe(false);
+		if (!result.valid) expect(result.error).toContain("--card");
 	});
 });
 

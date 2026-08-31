@@ -5,7 +5,7 @@
  * These utilities handle fetching and rendering blockchain-inscribed assets.
  */
 
-const ORDFS_BASE = "https://ordfs.network";
+const ORDFS_BASE = "https://api.1sat.app";
 
 // ============================================================================
 // Path Utilities
@@ -121,8 +121,15 @@ export function extractFontFamily(fontValue: string): string | null {
 	const fontName = match[1].trim();
 	// Exclude system fonts
 	const systemFonts = [
-		"ui-sans-serif", "ui-serif", "ui-monospace", "system-ui",
-		"-apple-system", "BlinkMacSystemFont", "sans-serif", "serif", "monospace",
+		"ui-sans-serif",
+		"ui-serif",
+		"ui-monospace",
+		"system-ui",
+		"-apple-system",
+		"BlinkMacSystemFont",
+		"sans-serif",
+		"serif",
+		"monospace",
 	];
 	if (systemFonts.includes(fontName.toLowerCase())) return null;
 	return fontName;
@@ -140,7 +147,9 @@ export function isGoogleFont(fontName: string): boolean {
 /**
  * Get font info (weights) for a Google Font
  */
-export function getGoogleFontInfo(fontName: string): { name: string; weights: readonly number[] } | undefined {
+export function getGoogleFontInfo(
+	fontName: string,
+): { name: string; weights: readonly number[] } | undefined {
 	return ALL_GOOGLE_FONTS.find(
 		(f) => f.name.toLowerCase() === fontName.toLowerCase(),
 	);
@@ -149,7 +158,10 @@ export function getGoogleFontInfo(fontName: string): { name: string; weights: re
 /**
  * Build Google Fonts API URL for a font
  */
-export function buildGoogleFontUrl(fontName: string, weights?: readonly number[]): string {
+export function buildGoogleFontUrl(
+	fontName: string,
+	weights?: readonly number[],
+): string {
 	const fontInfo = getGoogleFontInfo(fontName);
 	const fontWeights = weights || fontInfo?.weights || [400, 500, 600, 700];
 	const encodedFamily = encodeURIComponent(fontName);

@@ -5,8 +5,8 @@
  * These functions require a browser environment.
  */
 
-import type { ThemeStyleProps, ThemeToken } from "./schema";
 import { loadThemeAssets } from "./assets";
+import type { ThemeStyleProps, ThemeToken } from "./schema";
 
 /**
  * Apply theme styles to document root

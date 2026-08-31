@@ -127,8 +127,8 @@ export type GenerationMeta = z.infer<typeof generationMetaSchema>;
  * Optional: author (paymail/identity), css, bundle (for theme bundles), generation (AI metadata)
  */
 export const themeTokenSchema = z.object({
-	$schema: z.string(),
-	name: z.string(),
+	$schema: z.literal(THEME_TOKEN_SCHEMA_URL),
+	name: z.string().min(1),
 	author: z.string().optional(),
 	/** Bundle metadata for themes with associated assets */
 	bundle: bundleSchema.optional(),
@@ -351,17 +351,6 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			? parseCssBlock(darkMatch[1], varLookup)
 			: { ...lightStyles }; // Fall back to light if no dark
 
-		// Validate that we have required properties
-		const requiredProps = ["background", "foreground", "primary", "radius"];
-		for (const prop of requiredProps) {
-			if (!(prop in lightStyles)) {
-				return {
-					valid: false,
-					error: `Missing required property: --${prop}`,
-				};
-			}
-		}
-
 		// Check for unresolved var() references
 		const unresolvedVars: string[] = [];
 		for (const [key, value] of Object.entries(lightStyles)) {
@@ -393,6 +382,18 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			},
 			...(cssRules && { css: cssRules }),
 		};
+		const validation = themeTokenSchema.safeParse(theme);
+		if (!validation.success) {
+			const issue = validation.error.issues[0];
+			const property = issue?.path.at(-1);
+			return {
+				valid: false,
+				error:
+					typeof property === "string"
+						? `Missing or invalid required property: --${property}`
+						: validation.error.message,
+			};
+		}
 
 		// Calculate property counts
 		const lightPropertyCount = Object.keys(lightStyles).length;
@@ -411,7 +412,7 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			hasDarkMode,
 		};
 
-		return { valid: true, theme, metadata };
+		return { valid: true, theme: validation.data, metadata };
 	} catch (err) {
 		return {
 			valid: false,

@@ -8,13 +8,13 @@
 "use client";
 
 import {
+	type ReactNode,
 	createContext,
 	useCallback,
 	useContext,
 	useEffect,
 	useMemo,
 	useState,
-	type ReactNode,
 } from "react";
 import { applyThemeMode, applyThemeModeWithAssets, clearTheme } from "./apply";
 import { fetchThemeByOrigin } from "./fetch";
@@ -92,7 +92,11 @@ export function useThemeToken(
 	const [error, setError] = useState<Error | null>(null);
 
 	// Filter for ThemeToken ordinals
-	const themeTokens = ordinals.filter((o) => o.map?.app === "ThemeToken");
+	const themeTokens = ordinals.filter(
+		(o) =>
+			(o.map?.app === "theme-token" && o.map.type === "registry:style") ||
+			o.map?.app === "ThemeToken",
+	);
 
 	// Load theme by origin
 	const loadTheme = useCallback(async (origin: string) => {
@@ -336,7 +340,7 @@ export function ThemeTokenProvider({
 		if (originToLoad && !activeTheme) {
 			loadThemeInternal(originToLoad);
 		}
-	}, [storageKey, defaultOrigin]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [storageKey, defaultOrigin, activeTheme, loadThemeInternal]);
 
 	// Re-apply theme when mode changes
 	useEffect(() => {

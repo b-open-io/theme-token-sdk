@@ -30,23 +30,9 @@ Convert raw CSS into structured JSON for inscription. Automatically resolves `va
 ```typescript
 import { parseCss } from "@theme-token/sdk";
 
-const css = `
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --primary: oklch(0.6 0.15 250);
-  --primary-foreground: oklch(0.98 0 0);
-  --radius: 0.5rem;
-  /* ... */
-}
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.98 0 0);
-  /* ... */
-}
-`;
-
-const result = parseCss(css, "My Theme");
+// completeShadcnCss contains :root and .dark blocks with all 19 semantic
+// color variables plus --radius in each mode.
+const result = parseCss(completeShadcnCss, "My Theme");
 if (result.valid) {
   console.log(result.theme); // Ready to inscribe
 }
@@ -115,7 +101,7 @@ function ThemePicker({ ordinals }) {
 ```
 
 The hook automatically:
-- Filters ordinals for `map.app === "ThemeToken"`
+- Filters current `map.app === "theme-token"` / `map.type === "registry:style"` ordinals and legacy `ThemeToken` records
 - Persists selection to localStorage
 - Restores saved theme on mount
 - Detects light/dark mode from document
@@ -154,8 +140,8 @@ const css = toCss(theme);
 
 | Function | Description |
 |:---------|:------------|
-| `fetchThemeByOrigin(origin)` | Fetch theme from blockchain |
-| `fetchPublishedThemes()` | Fetch all published themes |
+| `fetchThemeByOrigin(origin)` | Fetch packaged `theme.json` from 1sat.app, with legacy fallback |
+| `fetchPublishedThemes()` | Fetch validated themes from the Theme Token index |
 | `getRegistryUrl(origin)` | Get registry URL for ShadCN CLI |
 
 ### Runtime
