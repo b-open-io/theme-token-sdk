@@ -103,7 +103,7 @@ describe("toShadcnRegistry", () => {
 			"https://ui.shadcn.com/schema/registry-item.json",
 		);
 		expect(registry.name).toBe("test-theme");
-		expect(registry.type).toBe("registry:style");
+		expect(registry.type).toBe("registry:theme");
 	});
 
 	it("includes cssVars with theme, light, and dark", () => {

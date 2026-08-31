@@ -18,6 +18,7 @@ import {
 } from "react";
 import { applyThemeMode, applyThemeModeWithAssets, clearTheme } from "./apply";
 import { fetchThemeByOrigin } from "./fetch";
+import { isThemeRegistryType } from "./registry";
 import type { ThemeToken } from "./schema";
 
 /**
@@ -91,10 +92,10 @@ export function useThemeToken(
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
-	// Filter for ThemeToken ordinals
+	// Discover current themes while preserving previously published records.
 	const themeTokens = ordinals.filter(
 		(o) =>
-			(o.map?.app === "theme-token" && o.map.type === "registry:style") ||
+			(o.map?.app === "theme-token" && isThemeRegistryType(o.map.type)) ||
 			o.map?.app === "ThemeToken",
 	);
 

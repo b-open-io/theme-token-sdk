@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.18] - 2026-08-31
+
+### Changed
+
+- Emit the current ShadCN `registry:theme` type for generated registry items
+- Preserve discovery of previously published `registry:style` MAP records
+
 ## [0.0.17] - 2026-08-30
 
 ### Changed
@@ -63,7 +70,7 @@ All notable changes to this project will be documented in this file.
 
 - Fetch raw content from the current `api.1sat.app` gateway
 - Load `theme.json` from ord-fs packages with a legacy direct-inscription fallback
-- Discover published themes through the Theme Token index using current `theme-token` and `registry:style` conventions
+- Add indexed discovery for lowercase `theme-token` MAP metadata and `registry:style` records
 - Update compatible build and type dependencies
 
 ### Fixed

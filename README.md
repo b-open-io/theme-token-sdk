@@ -44,7 +44,7 @@ if (result.valid) {
 import { toShadcnRegistry } from "@theme-token/sdk";
 
 const registryItem = toShadcnRegistry(theme);
-// { $schema, name, type: "registry:style", cssVars: { light, dark } }
+// { $schema, name, type: "registry:theme", cssVars: { light, dark } }
 ```
 
 ### Fetch from Blockchain
@@ -101,7 +101,7 @@ function ThemePicker({ ordinals }) {
 ```
 
 The hook automatically:
-- Filters current `map.app === "theme-token"` / `map.type === "registry:style"` ordinals and legacy `ThemeToken` records
+- Filters Theme Token theme ordinals, including previously published records
 - Persists selection to localStorage
 - Restores saved theme on mount
 - Detects light/dark mode from document

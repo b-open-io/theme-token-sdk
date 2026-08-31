@@ -5,6 +5,7 @@
  */
 
 import { extractOrigin, isOnChainPath } from "./assets";
+import { THEME_REGISTRY_TYPE } from "./registry";
 import {
 	THEME_TOKEN_SCHEMA_URL,
 	type ThemeStyleProps,
@@ -19,7 +20,7 @@ import { getShadowScale, toCssVariableName } from "./style";
 export interface ShadcnRegistryItem {
 	$schema: string;
 	name: string;
-	type: "registry:style";
+	type: typeof THEME_REGISTRY_TYPE;
 	css: {
 		"@layer base": Record<
 			string,
@@ -233,7 +234,7 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 	return {
 		$schema: "https://ui.shadcn.com/schema/registry-item.json",
 		name: toShadcnName(theme.name),
-		type: "registry:style",
+		type: THEME_REGISTRY_TYPE,
 		css,
 		cssVars: {
 			theme: themeVars,
