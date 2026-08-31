@@ -35,8 +35,9 @@
     "build": "tsup && node scripts/add-use-client.mjs",
     "dev": "tsup --watch",
     "test": "bun test",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
+    "test:shadcn": "bun scripts/shadcn-conformance.ts",
+    "lint": "biome check src scripts/shadcn-conformance.ts",
+    "lint:fix": "biome check --write src scripts/shadcn-conformance.ts",
     "prepublishOnly": "bun run build"
   },
   "repository": {
