@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.0.15] - 2026-08-30
+
+### Changed
+
+- Install on-chain fonts through ShadCN-supported immutable CSS imports
+- Apply `font-heading` to heading elements when a heading font is present
+
+### Fixed
+
+- Remove synthetic `@font-face-*` registry keys that current ShadCN parsed as invalid at-rules
+- Deduplicate stylesheet imports when multiple font slots reference one on-chain font
+- Normalize current ShadCN CSS that omits the legacy required `destructive-foreground` token
+
 ## [0.0.14] - 2026-08-30
 
 ### Added

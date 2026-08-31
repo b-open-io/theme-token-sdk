@@ -57,8 +57,9 @@ const validTheme = {
 	},
 };
 
-function cssVars(styles: Record<string, string>): string {
+function cssVars(styles: Record<string, string>, omit: string[] = []): string {
 	return Object.entries(styles)
+		.filter(([key]) => !omit.includes(key))
 		.map(([key, value]) => `  --${key}: ${value};`)
 		.join("\n");
 }
@@ -231,6 +232,23 @@ ${cssVars(validTheme.styles.light)}
 			expect(result.theme.styles.light["letter-spacing"]).toBe("0.02em");
 			expect(result.theme.styles.light["shadow-offset-x"]).toBe("2px");
 			expect(result.theme.styles.light["shadow-offset-y"]).toBe("3px");
+		}
+	});
+
+	it("fills the legacy destructive foreground omitted by current ShadCN", () => {
+		const { light, dark } = validTheme.styles;
+		const css = `:root {\n${cssVars(light, ["destructive-foreground"])}\n}\n.dark {\n${cssVars(dark, ["destructive-foreground"])}\n}`;
+
+		const result = parseCss(css);
+
+		expect(result.valid).toBe(true);
+		if (result.valid) {
+			expect(result.theme.styles.light["destructive-foreground"]).toBe(
+				light.background,
+			);
+			expect(result.theme.styles.dark["destructive-foreground"]).toBe(
+				dark.background,
+			);
 		}
 	});
 

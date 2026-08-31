@@ -4,7 +4,7 @@
  * Convert between ThemeToken and other formats like ShadCN Registry and CSS.
  */
 
-import { extractOrigin, getContentUrl, isOnChainPath } from "./assets";
+import { extractOrigin, isOnChainPath } from "./assets";
 import {
 	THEME_TOKEN_SCHEMA_URL,
 	type ThemeStyleProps,
@@ -21,10 +21,14 @@ export interface ShadcnRegistryItem {
 	name: string;
 	type: "registry:style";
 	css: {
-		"@layer base": Record<string, Record<string, string>>;
+		"@layer base": Record<
+			string,
+			Record<string, string | Record<string, never>>
+		>;
+		[key: `@import url("${string}")`]: Record<string, never>;
 		[key: string]:
-			| Record<string, string>
-			| Record<string, Record<string, string>>;
+			| Record<string, string | Record<string, never>>
+			| Record<string, Record<string, string | Record<string, never>>>;
 	};
 	cssVars: {
 		theme: Record<string, string>;
@@ -211,17 +215,19 @@ export function toShadcnRegistry(theme: ThemeToken): ShadcnRegistryItem {
 			},
 		},
 	};
-
-	// Add @font-face rules for on-chain fonts
-	for (const font of onChainFonts) {
-		const fontUrl = getContentUrl(font.origin);
-		css[`@font-face-${font.slot}`] = {
-			"font-family": `"${font.familyName}"`,
-			src: `url("${fontUrl}") format("woff2")`,
-			"font-weight": "100 900",
-			"font-style": "normal",
-			"font-display": "swap",
+	if (heading) {
+		css["@layer base"]["h1, h2, h3, h4, h5, h6"] = {
+			"@apply font-heading": {},
 		};
+	}
+
+	// ShadCN registry CSS supports imports, not raw @font-face declarations.
+	const importedFontOrigins = new Set<string>();
+	for (const font of onChainFonts) {
+		if (importedFontOrigins.has(font.origin)) continue;
+		importedFontOrigins.add(font.origin);
+		css[`@import url("https://themetoken.dev/r/fonts/${font.origin}.css")`] =
+			{};
 	}
 
 	return {

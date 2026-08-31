@@ -67,6 +67,7 @@ const conformanceTheme: ThemeToken = {
 	styles: {
 		light: {
 			...testTheme.styles.light,
+			"font-sans": "/content/abcdef1234567890_0",
 			"font-heading": "/content/abcdef1234567890_0",
 			"letter-spacing": "0.02em",
 			spacing: "0.3rem",
@@ -80,6 +81,7 @@ const conformanceTheme: ThemeToken = {
 		},
 		dark: {
 			...testTheme.styles.dark,
+			"font-sans": "/content/abcdef1234567890_0",
 			"font-heading": "/content/abcdef1234567890_0",
 			"letter-spacing": "0.02em",
 			spacing: "0.3rem",
@@ -129,6 +131,9 @@ describe("toShadcnRegistry", () => {
 		expect(registry.css["@layer base"].body["letter-spacing"]).toBe(
 			"var(--tracking-normal)",
 		);
+		expect(
+			registry.css["@layer base"]["h1, h2, h3, h4, h5, h6"],
+		).toBeUndefined();
 	});
 
 	it("normalizes theme name to kebab-case", () => {
@@ -182,15 +187,24 @@ describe("toShadcnRegistry", () => {
 		expect(registry.cssVars.light["tracking-normal"]).toBeUndefined();
 	});
 
-	it("supports on-chain heading fonts", () => {
+	it("supports and deduplicates on-chain font imports", () => {
 		const registry = toShadcnRegistry(conformanceTheme);
 
 		expect(registry.cssVars.theme["font-heading"]).toBe(
 			'"tt-abcdef12", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
 		);
-		expect(registry.css["@font-face-heading"]).toMatchObject({
-			"font-family": '"tt-abcdef12"',
-			src: 'url("https://api.1sat.app/content/abcdef1234567890_0") format("woff2")',
+		const imports = Object.keys(registry.css).filter((key) =>
+			key.startsWith("@import"),
+		);
+		expect(imports).toEqual([
+			'@import url("https://themetoken.dev/r/fonts/abcdef1234567890_0.css")',
+		]);
+		expect(registry.css[imports[0]]).toEqual({});
+		expect(
+			Object.keys(registry.css).some((key) => key.startsWith("@font-face")),
+		).toBe(false);
+		expect(registry.css["@layer base"]["h1, h2, h3, h4, h5, h6"]).toEqual({
+			"@apply font-heading": {},
 		});
 	});
 });

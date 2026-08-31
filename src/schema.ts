@@ -351,6 +351,15 @@ export function parseCss(css: string, name = "Custom Theme"): ParseResult {
 			? parseCssBlock(darkMatch[1], varLookup)
 			: { ...lightStyles }; // Fall back to light if no dark
 
+		// Current ShadCN themes omit this legacy v1 token. Keep the immutable
+		// Theme Token shape complete when importing their CSS.
+		for (const styles of [lightStyles, darkStyles]) {
+			if (styles.destructive && !styles["destructive-foreground"]) {
+				styles["destructive-foreground"] =
+					styles.background || styles.foreground;
+			}
+		}
+
 		// Check for unresolved var() references
 		const unresolvedVars: string[] = [];
 		for (const [key, value] of Object.entries(lightStyles)) {
